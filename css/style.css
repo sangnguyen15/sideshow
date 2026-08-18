@@ -22,16 +22,18 @@ html, body {
   inset: 0;
   background: #000;
   z-index: 1;
+  overflow: hidden;
 }
 
 .slide-layer {
   position: absolute;
   inset: 0;
-  background-position: center;
-  background-repeat: no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   opacity: 0;
-  transition: opacity 1.2s ease, transform 8s ease;
   will-change: opacity, transform;
+  background: #000;
 }
 
 .slide-layer.active {
@@ -43,37 +45,15 @@ html, body {
   z-index: 1;
 }
 
-/* Object-fit simulation via background-size */
-.slide-layer.fit-cover {
-  background-size: cover;
-}
-.slide-layer.fit-contain {
-  background-size: contain;
-}
-.slide-layer.fit-fill {
-  background-size: 100% 100%;
-}
-
-/* Ken Burns */
-.slide-layer.kenburns-active {
-  animation: kenburns 12s ease-out forwards;
-}
-
-@keyframes kenburns {
-  from {
-    transform: scale(1) translate(0, 0);
-  }
-  to {
-    transform: scale(1.12) translate(-2%, -1.5%);
-  }
-}
-
-/* Slide effect helper */
-.slide-layer.slide-in-right {
-  transform: translateX(100%);
-}
-.slide-layer.slide-in-left {
-  transform: translateX(-100%);
+/* Ảnh thật bên trong layer – quan trọng để object-fit hoạt động đúng */
+.slide-layer img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  pointer-events: none;
+  will-change: transform;
 }
 
 /* Loading overlay */
@@ -279,7 +259,7 @@ input:focus, select:focus {
 
 .setting-row input[type="number"],
 .setting-row select {
-  width: 110px;
+  width: 140px;
   flex: none;
 }
 
