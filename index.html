@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Family Photo Slideshow</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- ========== SLIDESHOW LAYER ========== -->
+  <div id="slideshow-container">
+    <div class="slide-layer" id="layer-a"></div>
+    <div class="slide-layer" id="layer-b"></div>
+    <div id="loading-overlay">
+      <div class="spinner"></div>
+      <p>Đang tải ảnh...</p>
+    </div>
+  </div>
+
+  <!-- ========== CONTROL PANEL ========== -->
+  <div id="control-panel" class="panel">
+    <div class="panel-header">
+      <h1>Family Photo Slideshow</h1>
+      <button id="btn-close-panel" class="btn-icon" title="Đóng">✕</button>
+    </div>
+
+    <div class="panel-body">
+      <!-- Sources -->
+      <section class="section">
+        <h2>Nguồn ảnh (Google Drive)</h2>
+        <div class="input-group">
+          <input type="text" id="input-drive-link" placeholder="Dán link folder Google Drive (Anyone with the link)" />
+          <button id="btn-add-source" class="btn">Thêm</button>
+        </div>
+        <ul id="source-list" class="source-list"></ul>
+        <p class="hint">Folder phải được chia sẻ: Anyone with the link → Viewer</p>
+      </section>
+
+      <!-- Settings -->
+      <section class="section">
+        <h2>Cài đặt Slideshow</h2>
+
+        <div class="setting-row">
+          <label>Thời gian mỗi ảnh (giây)</label>
+          <input type="number" id="setting-duration" min="2" max="30" value="5" />
+        </div>
+
+        <div class="setting-row">
+          <label>Hiệu ứng chuyển cảnh</label>
+          <select id="setting-effect">
+            <option value="fade">Fade</option>
+            <option value="kenburns">Ken Burns</option>
+            <option value="slide">Slide</option>
+            <option value="zoom">Zoom</option>
+          </select>
+        </div>
+
+        <div class="setting-row">
+          <label>Tỷ lệ ảnh trên màn hình</label>
+          <select id="setting-fit">
+            <option value="cover">Cover (phủ kín)</option>
+            <option value="contain">Contain (hiện đủ)</option>
+            <option value="fill">Fill (kéo dãn)</option>
+          </select>
+        </div>
+
+        <div class="setting-row">
+          <label>Ẩn giao diện sau (giây không tương tác)</label>
+          <input type="number" id="setting-idle" min="3" max="60" value="8" />
+        </div>
+
+        <div class="setting-row">
+          <label>
+            <input type="checkbox" id="setting-shuffle" />
+            Xáo trộn trong từng folder
+          </label>
+        </div>
+
+        <div class="setting-row">
+          <label>
+            <input type="checkbox" id="setting-resume" checked />
+            Tiếp tục từ vị trí cũ khi mở lại
+          </label>
+        </div>
+      </section>
+
+      <!-- API Key -->
+      <section class="section">
+        <h2>Google Drive API Key</h2>
+        <div class="input-group">
+          <input type="password" id="input-api-key" placeholder="Nhập API Key của bạn" />
+          <button id="btn-save-key" class="btn">Lưu</button>
+        </div>
+        <p class="hint">
+          Tạo API Key miễn phí tại
+          <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a>
+          (bật Drive API)
+        </p>
+      </section>
+
+      <!-- Actions -->
+      <section class="section actions">
+        <button id="btn-start" class="btn btn-primary">Bắt đầu chiếu</button>
+        <button id="btn-resume" class="btn">Tiếp tục từ vị trí cũ</button>
+        <button id="btn-reset-progress" class="btn btn-secondary">Reset vị trí chiếu</button>
+      </section>
+    </div>
+  </div>
+
+  <!-- Floating open button when panel is hidden -->
+  <button id="btn-open-panel" class="btn-floating" title="Mở cài đặt">⚙️</button>
+
+  <!-- Status bar (optional info) -->
+  <div id="status-bar"></div>
+
+  <script src="js/storage.js"></script>
+  <script src="js/drive.js"></script>
+  <script src="js/slideshow.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
