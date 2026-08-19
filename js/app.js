@@ -19,6 +19,7 @@
 
   // Settings inputs
   const settingDuration = document.getElementById('setting-duration');
+  const settingTransition = document.getElementById('setting-transition');
   const settingEffect = document.getElementById('setting-effect');
   const settingFit = document.getElementById('setting-fit');
   const settingIdle = document.getElementById('setting-idle');
@@ -39,6 +40,7 @@
     // Fill UI
     inputApiKey.value = apiKey;
     settingDuration.value = settings.duration;
+    settingTransition.value = settings.transition;
     settingEffect.value = settings.effect;
     settingFit.value = settings.fit;
     settingIdle.value = settings.idle;
@@ -83,7 +85,7 @@
     });
 
     // Settings change → save
-    [settingDuration, settingEffect, settingFit, settingIdle, settingShuffle, settingResume].forEach(el => {
+    [settingDuration, settingTransition, settingEffect, settingFit, settingIdle, settingShuffle, settingResume].forEach(el => {
       el.addEventListener('change', saveSettingsFromUI);
     });
 
@@ -197,8 +199,9 @@
   function saveSettingsFromUI() {
     const settings = {
       duration: parseInt(settingDuration.value, 10) || 5,
+      transition: parseFloat(settingTransition.value) || 1.0,
       effect: settingEffect.value,
-      fit: settingFit.value,
+      fit: settingFit.value || 'contain',
       idle: parseInt(settingIdle.value, 10) || 8,
       shuffle: settingShuffle.checked,
       resume: settingResume.checked

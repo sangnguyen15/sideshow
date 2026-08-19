@@ -27,8 +27,9 @@ const Storage = {
   getSettings() {
     const defaults = {
       duration: 5,
-      effect: 'fade',
-      fit: 'cover',
+      transition: 1.0,
+      effect: 'random',
+      fit: 'contain',
       idle: 8,
       shuffle: false,
       resume: true

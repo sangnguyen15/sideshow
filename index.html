@@ -48,24 +48,35 @@
         </div>
 
         <div class="setting-row">
+          <label>Thời gian hiệu ứng chuyển (giây)</label>
+          <input type="number" id="setting-transition" min="0.3" max="3" step="0.1" value="1.0" />
+        </div>
+
+        <div class="setting-row">
           <label>Hiệu ứng chuyển cảnh</label>
           <select id="setting-effect">
             <option value="random">Ngẫu nhiên (Random)</option>
             <option value="fade">Fade</option>
-            <option value="kenburns">Ken Burns</option>
+            <option value="fade-black">Fade qua đen</option>
             <option value="slide-left">Slide Left</option>
             <option value="slide-right">Slide Right</option>
+            <option value="slide-up">Slide Up</option>
+            <option value="slide-down">Slide Down</option>
             <option value="zoom-in">Zoom In</option>
             <option value="zoom-out">Zoom Out</option>
+            <option value="kenburns">Ken Burns nhẹ</option>
+            <option value="push-left">Push Left</option>
+            <option value="push-right">Push Right</option>
+            <option value="soft-zoom">Soft Zoom</option>
           </select>
         </div>
 
         <div class="setting-row">
-          <label>Tỷ lệ ảnh trên màn hình</label>
+          <label>Khi ảnh đứng yên</label>
           <select id="setting-fit">
-            <option value="cover">Cover (phủ kín)</option>
-            <option value="contain">Contain (hiện đủ)</option>
-            <option value="fill">Fill (kéo dãn)</option>
+            <option value="contain" selected>Full ảnh (không cắt) – khuyến nghị</option>
+            <option value="cover">Phủ kín màn hình (có thể cắt)</option>
+            <option value="fill">Kéo dãn đầy màn hình</option>
           </select>
         </div>
 
