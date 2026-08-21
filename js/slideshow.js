@@ -1,7 +1,12 @@
 /**
- * slideshow.js – Double buffering + preload + nhiều hiệu ứng nhẹ
- * Hướng A: khi ảnh đứng yên → full ảnh (contain), không cắt nội dung
- * Trong lúc transition được phép scale/pan tạm thời, sau đó reset về full ảnh
+ * slideshow.js
+ * Logic mới:
+ * - Thời gian hiệu ứng = thời gian ảnh mới di chuyển/zoom vào (có thể dài)
+ * - Ảnh cũ và ảnh mới chạy song song (cùng lúc)
+ * - Sau khi hết hiệu ứng → ảnh đứng yên theo "duration"
+ * - Khi đứng yên: full ảnh (contain) theo Hướng A
+ * - Setting mới mặc định áp dụng từ ảnh tiếp theo
+ * - applySettingsNow() = chuyển ngay sang ảnh mới với setting hiện tại
  */
 
 const Slideshow = {
@@ -20,7 +25,6 @@ const Slideshow = {
   onStatus: null,
   onError: null,
 
-  // Nhiều hiệu ứng nhẹ
   effects: [
     'fade',
     'fade-black',
@@ -37,7 +41,7 @@ const Slideshow = {
   ],
 
   init(settings, onStatus, onError) {
-    this.settings = settings;
+    this.settings = { ...settings };
     this.onStatus = onStatus;
     this.onError = onError;
 
@@ -90,8 +94,9 @@ const Slideshow = {
     }
 
     await this.prepareInitial();
-    this.showCurrent(true);
-    this.scheduleNext();
+    // Ảnh đầu tiên hiện luôn (không hiệu ứng), rồi đứng yên
+    this.showStaticCurrent();
+    this.scheduleAfterHold();
   },
 
   stop() {
@@ -100,6 +105,18 @@ const Slideshow = {
       clearTimeout(this.timer);
       this.timer = null;
     }
+  },
+
+  /**
+   * Áp dụng setting ngay: hủy timer, chuyển sang ảnh tiếp theo với setting mới
+   */
+  applySettingsNow() {
+    if (!this.isPlaying) return;
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
+    this.next();
   },
 
   async prepareInitial() {
@@ -129,7 +146,6 @@ const Slideshow = {
       sIdx++;
     }
 
-    // Loop về đầu
     if (this.sources.length > 0) {
       const first = this.sources[0];
       const idx = ((pIdx % first.photos.length) + first.photos.length) % first.photos.length;
@@ -138,41 +154,6 @@ const Slideshow = {
     return null;
   },
 
-  /**
-   * Hiển thị ảnh đứng yên → luôn full ảnh (contain) theo hướng A
-   */
-  showCurrent(isFirst = false) {
-    const photo = this.getPhotoAtOffset(0);
-    if (!photo) return;
-
-    const layer = this.activeLayer === 'a' ? this.layerA : this.layerB;
-    const img = layer.querySelector('img');
-
-    // Reset hoàn toàn về trạng thái đứng yên
-    layer.className = 'slide-layer active';
-    layer.style.opacity = '1';
-    layer.style.transform = '';
-    layer.style.transition = '';
-
-    this.applyFit(img, this.settings.fit || 'contain');
-    img.style.transform = '';
-    img.style.transition = '';
-    img.src = photo.url;
-
-    Storage.saveProgress({
-      sourceIndex: photo.sourceIndex,
-      photoIndex: photo.photoIndex,
-      timestamp: Date.now()
-    });
-    Storage.addRecent(photo.id);
-    this.recentIds.add(photo.id);
-
-    this.updateStatus(photo);
-  },
-
-  /**
-   * Áp dụng chế độ hiển thị ảnh (contain = full ảnh)
-   */
   applyFit(img, fit) {
     img.classList.remove('fit-cover', 'fit-fill');
     if (fit === 'cover') {
@@ -186,13 +167,45 @@ const Slideshow = {
       img.style.height = '100%';
       img.classList.add('fit-fill');
     } else {
-      // contain – full ảnh, không cắt
       img.style.objectFit = 'contain';
       img.style.width = 'auto';
       img.style.height = 'auto';
       img.style.maxWidth = '100%';
       img.style.maxHeight = '100%';
     }
+  },
+
+  showStaticCurrent() {
+    const photo = this.getPhotoAtOffset(0);
+    if (!photo) return;
+
+    const layer = this.activeLayer === 'a' ? this.layerA : this.layerB;
+    const other = this.activeLayer === 'a' ? this.layerB : this.layerA;
+    const img = layer.querySelector('img');
+
+    layer.className = 'slide-layer active';
+    layer.style.opacity = '1';
+    layer.style.transform = '';
+    layer.style.transition = 'none';
+
+    other.className = 'slide-layer';
+    other.style.opacity = '0';
+    other.style.transform = '';
+    other.style.transition = 'none';
+
+    this.applyFit(img, this.settings.fit || 'contain');
+    img.style.transform = '';
+    img.style.transition = 'none';
+    img.src = photo.url;
+
+    Storage.saveProgress({
+      sourceIndex: photo.sourceIndex,
+      photoIndex: photo.photoIndex,
+      timestamp: Date.now()
+    });
+    Storage.addRecent(photo.id);
+    this.recentIds.add(photo.id);
+    this.updateStatus(photo);
   },
 
   pickEffect() {
@@ -203,14 +216,25 @@ const Slideshow = {
   },
 
   getTransitionMs() {
-    const sec = parseFloat(this.settings.transition) || 1.0;
-    return Math.round(Math.max(0.3, Math.min(3, sec)) * 1000);
+    const sec = parseFloat(this.settings.transition);
+    if (isNaN(sec)) return 8000;
+    return Math.round(Math.max(0.5, Math.min(60, sec)) * 1000);
+  },
+
+  getHoldMs() {
+    const sec = parseFloat(this.settings.duration);
+    if (isNaN(sec)) return 5000;
+    return Math.round(Math.max(1, Math.min(60, sec)) * 1000);
+  },
+
+  scheduleAfterHold() {
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.next(), this.getHoldMs());
   },
 
   async next() {
     if (!this.isPlaying) return;
 
-    // Tăng index
     this.currentPhotoIndex++;
     const currentSource = this.sources[this.currentSourceIndex];
 
@@ -234,224 +258,237 @@ const Slideshow = {
 
     const photo = this.getPhotoAtOffset(0);
     if (!photo) {
-      this.scheduleNext();
+      this.scheduleAfterHold();
       return;
     }
 
-    // Preload
     try {
       await Drive.preloadImage(photo.url);
     } catch (e) {
       console.warn('Skip image', e);
       this.currentPhotoIndex++;
-      this.scheduleNext(400);
+      this.scheduleAfterHold();
       return;
     }
 
     const duration = this.getTransitionMs();
     const fit = this.settings.fit || 'contain';
+    const effect = this.pickEffect();
+    const ease = 'cubic-bezier(0.4, 0.0, 0.2, 1)';
 
-    // Chuẩn bị layer mới – bắt đầu từ trạng thái full ảnh
     this.applyFit(nextImg, fit);
     nextImg.src = photo.url;
+    nextImg.style.transition = 'none';
     nextImg.style.transform = '';
-    nextImg.style.transition = '';
     nextLayer.className = 'slide-layer next';
+    nextLayer.style.transition = 'none';
     nextLayer.style.opacity = '0';
     nextLayer.style.transform = '';
-    nextLayer.style.transition = '';
 
-    // Force reflow
     void nextLayer.offsetWidth;
 
-    const effect = this.pickEffect();
+    this.setStartState(nextLayer, nextImg, effect);
+    void nextLayer.offsetWidth;
 
-    // ========== HIỆU ỨNG NHẸ ==========
-    if (effect === 'fade') {
-      nextLayer.style.transition = `opacity ${duration}ms ease`;
-      currLayer.style.transition = `opacity ${duration}ms ease`;
-      nextLayer.style.opacity = '1';
-      currLayer.style.opacity = '0';
-      nextLayer.classList.add('active');
-    }
-    else if (effect === 'fade-black') {
-      // Fade ra đen rồi fade vào
-      currLayer.style.transition = `opacity ${duration / 2}ms ease`;
-      currLayer.style.opacity = '0';
-      setTimeout(() => {
-        nextLayer.style.transition = `opacity ${duration / 2}ms ease`;
-        nextLayer.style.opacity = '1';
-        nextLayer.classList.add('active');
-      }, duration / 2);
-    }
-    else if (effect === 'slide-left') {
-      nextLayer.style.transition = `transform ${duration}ms cubic-bezier(0.25, 0.1, 0.25, 1), opacity ${duration}ms ease`;
-      currLayer.style.transition = `transform ${duration}ms cubic-bezier(0.25, 0.1, 0.25, 1), opacity ${duration}ms ease`;
-      nextLayer.style.transform = 'translateX(100%)';
-      nextLayer.style.opacity = '1';
-      requestAnimationFrame(() => {
-        nextLayer.style.transform = 'translateX(0)';
-        currLayer.style.transform = 'translateX(-30%)';
-        currLayer.style.opacity = '0';
-      });
-      nextLayer.classList.add('active');
-    }
-    else if (effect === 'slide-right') {
-      nextLayer.style.transition = `transform ${duration}ms cubic-bezier(0.25, 0.1, 0.25, 1), opacity ${duration}ms ease`;
-      currLayer.style.transition = `transform ${duration}ms cubic-bezier(0.25, 0.1, 0.25, 1), opacity ${duration}ms ease`;
-      nextLayer.style.transform = 'translateX(-100%)';
-      nextLayer.style.opacity = '1';
-      requestAnimationFrame(() => {
-        nextLayer.style.transform = 'translateX(0)';
-        currLayer.style.transform = 'translateX(30%)';
-        currLayer.style.opacity = '0';
-      });
-      nextLayer.classList.add('active');
-    }
-    else if (effect === 'slide-up') {
-      nextLayer.style.transition = `transform ${duration}ms cubic-bezier(0.25, 0.1, 0.25, 1), opacity ${duration}ms ease`;
-      currLayer.style.transition = `transform ${duration}ms cubic-bezier(0.25, 0.1, 0.25, 1), opacity ${duration}ms ease`;
-      nextLayer.style.transform = 'translateY(100%)';
-      nextLayer.style.opacity = '1';
-      requestAnimationFrame(() => {
-        nextLayer.style.transform = 'translateY(0)';
-        currLayer.style.transform = 'translateY(-25%)';
-        currLayer.style.opacity = '0';
-      });
-      nextLayer.classList.add('active');
-    }
-    else if (effect === 'slide-down') {
-      nextLayer.style.transition = `transform ${duration}ms cubic-bezier(0.25, 0.1, 0.25, 1), opacity ${duration}ms ease`;
-      currLayer.style.transition = `transform ${duration}ms cubic-bezier(0.25, 0.1, 0.25, 1), opacity ${duration}ms ease`;
-      nextLayer.style.transform = 'translateY(-100%)';
-      nextLayer.style.opacity = '1';
-      requestAnimationFrame(() => {
-        nextLayer.style.transform = 'translateY(0)';
-        currLayer.style.transform = 'translateY(25%)';
-        currLayer.style.opacity = '0';
-      });
-      nextLayer.classList.add('active');
-    }
-    else if (effect === 'zoom-in') {
-      nextLayer.style.transition = `opacity ${duration}ms ease, transform ${duration}ms ease`;
-      nextLayer.style.transform = 'scale(1.15)';
-      nextLayer.style.opacity = '0';
-      requestAnimationFrame(() => {
-        nextLayer.style.transform = 'scale(1)';
-        nextLayer.style.opacity = '1';
-        currLayer.style.opacity = '0';
-      });
-      nextLayer.classList.add('active');
-    }
-    else if (effect === 'zoom-out') {
-      nextLayer.style.transition = `opacity ${duration}ms ease, transform ${duration}ms ease`;
-      nextLayer.style.transform = 'scale(0.88)';
-      nextLayer.style.opacity = '0';
-      requestAnimationFrame(() => {
-        nextLayer.style.transform = 'scale(1)';
-        nextLayer.style.opacity = '1';
-        currLayer.style.opacity = '0';
-      });
-      nextLayer.classList.add('active');
-    }
-    else if (effect === 'kenburns') {
-      // Fade + Ken Burns nhẹ trong lúc đứng
-      nextLayer.style.transition = `opacity ${duration}ms ease`;
-      currLayer.style.transition = `opacity ${duration}ms ease`;
-      nextLayer.style.opacity = '1';
-      currLayer.style.opacity = '0';
-      nextLayer.classList.add('active');
+    requestAnimationFrame(() => {
+      this.runTransition(nextLayer, nextImg, currLayer, currImg, effect, duration, ease);
+    });
 
-      // Ken Burns nhẹ trên ảnh mới (chỉ trong thời gian đứng)
-      nextImg.style.transition = 'none';
-      nextImg.style.transform = 'scale(1) translate(0,0)';
-      void nextImg.offsetWidth;
-      const holdTime = (this.settings.duration || 5) * 1000;
-      nextImg.style.transition = `transform ${holdTime}ms ease-out`;
-      nextImg.style.transform = 'scale(1.08) translate(-1.5%, -1%)';
-    }
-    else if (effect === 'push-left') {
-      nextLayer.style.transition = `transform ${duration}ms cubic-bezier(0.25, 0.1, 0.25, 1)`;
-      currLayer.style.transition = `transform ${duration}ms cubic-bezier(0.25, 0.1, 0.25, 1)`;
-      nextLayer.style.transform = 'translateX(100%)';
-      nextLayer.style.opacity = '1';
-      requestAnimationFrame(() => {
-        nextLayer.style.transform = 'translateX(0)';
-        currLayer.style.transform = 'translateX(-100%)';
-      });
-      nextLayer.classList.add('active');
-    }
-    else if (effect === 'push-right') {
-      nextLayer.style.transition = `transform ${duration}ms cubic-bezier(0.25, 0.1, 0.25, 1)`;
-      currLayer.style.transition = `transform ${duration}ms cubic-bezier(0.25, 0.1, 0.25, 1)`;
-      nextLayer.style.transform = 'translateX(-100%)';
-      nextLayer.style.opacity = '1';
-      requestAnimationFrame(() => {
-        nextLayer.style.transform = 'translateX(0)';
-        currLayer.style.transform = 'translateX(100%)';
-      });
-      nextLayer.classList.add('active');
-    }
-    else if (effect === 'soft-zoom') {
-      nextLayer.style.transition = `opacity ${duration}ms ease, transform ${duration}ms ease`;
-      nextLayer.style.transform = 'scale(1.06)';
-      nextLayer.style.opacity = '0';
-      requestAnimationFrame(() => {
-        nextLayer.style.transform = 'scale(1)';
-        nextLayer.style.opacity = '1';
-        currLayer.style.opacity = '0';
-      });
-      nextLayer.classList.add('active');
-    }
-    else {
-      // fallback fade
-      nextLayer.style.transition = `opacity ${duration}ms ease`;
-      currLayer.style.transition = `opacity ${duration}ms ease`;
-      nextLayer.style.opacity = '1';
-      currLayer.style.opacity = '0';
-      nextLayer.classList.add('active');
-    }
-
-    // Đổi active layer
     this.activeLayer = this.activeLayer === 'a' ? 'b' : 'a';
 
-    // Sau khi hết hiệu ứng → ép về trạng thái full ảnh đứng yên
-    setTimeout(() => {
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = setTimeout(() => {
       if (!this.isPlaying) return;
+
       const active = this.activeLayer === 'a' ? this.layerA : this.layerB;
+      const other = this.activeLayer === 'a' ? this.layerB : this.layerA;
       const activeImg = active.querySelector('img');
+
+      active.style.transition = 'none';
       active.style.transform = '';
+      active.style.opacity = '1';
+      active.className = 'slide-layer active';
+
+      other.style.transition = 'none';
+      other.style.opacity = '0';
+      other.style.transform = '';
+      other.className = 'slide-layer';
+
       if (activeImg) {
         this.applyFit(activeImg, fit);
+        if (effect !== 'kenburns') {
+          activeImg.style.transition = 'none';
+          activeImg.style.transform = '';
+        }
       }
-    }, duration + 50);
 
-    // Lưu progress
-    Storage.saveProgress({
-      sourceIndex: photo.sourceIndex,
-      photoIndex: photo.photoIndex,
-      timestamp: Date.now()
-    });
-    Storage.addRecent(photo.id);
+      Storage.saveProgress({
+        sourceIndex: photo.sourceIndex,
+        photoIndex: photo.photoIndex,
+        timestamp: Date.now()
+      });
+      Storage.addRecent(photo.id);
+
+      this.updateStatus(photo);
+      this.preloadAhead();
+      this.scheduleAfterHold();
+    }, duration + 50);
 
     this.updateStatus(photo);
     this.preloadAhead();
-    this.scheduleNext();
+  },
+
+  setStartState(nextLayer, nextImg, effect) {
+    switch (effect) {
+      case 'fade':
+      case 'fade-black':
+        nextLayer.style.opacity = '0';
+        nextLayer.style.transform = 'scale(1)';
+        break;
+      case 'slide-left':
+        nextLayer.style.opacity = '1';
+        nextLayer.style.transform = 'translateX(100%)';
+        break;
+      case 'slide-right':
+        nextLayer.style.opacity = '1';
+        nextLayer.style.transform = 'translateX(-100%)';
+        break;
+      case 'slide-up':
+        nextLayer.style.opacity = '1';
+        nextLayer.style.transform = 'translateY(100%)';
+        break;
+      case 'slide-down':
+        nextLayer.style.opacity = '1';
+        nextLayer.style.transform = 'translateY(-100%)';
+        break;
+      case 'zoom-in':
+        nextLayer.style.opacity = '0';
+        nextLayer.style.transform = 'scale(1.25)';
+        break;
+      case 'zoom-out':
+      case 'soft-zoom':
+        nextLayer.style.opacity = '0';
+        nextLayer.style.transform = 'scale(0.82)';
+        break;
+      case 'kenburns':
+        nextLayer.style.opacity = '0';
+        nextLayer.style.transform = 'scale(1)';
+        nextImg.style.transform = 'scale(1) translate(0,0)';
+        break;
+      case 'push-left':
+        nextLayer.style.opacity = '1';
+        nextLayer.style.transform = 'translateX(100%)';
+        break;
+      case 'push-right':
+        nextLayer.style.opacity = '1';
+        nextLayer.style.transform = 'translateX(-100%)';
+        break;
+      default:
+        nextLayer.style.opacity = '0';
+        nextLayer.style.transform = 'scale(1)';
+    }
+  },
+
+  runTransition(nextLayer, nextImg, currLayer, currImg, effect, duration, ease) {
+    const t = duration + 'ms ' + ease;
+
+    nextLayer.style.transition = 'transform ' + t + ', opacity ' + t;
+    currLayer.style.transition = 'transform ' + t + ', opacity ' + t;
+    nextLayer.classList.add('active');
+
+    switch (effect) {
+      case 'fade':
+        nextLayer.style.opacity = '1';
+        nextLayer.style.transform = 'scale(1)';
+        currLayer.style.opacity = '0';
+        break;
+
+      case 'fade-black':
+        currLayer.style.transition = 'opacity ' + (duration / 2) + 'ms ease';
+        currLayer.style.opacity = '0';
+        setTimeout(() => {
+          nextLayer.style.transition = 'opacity ' + (duration / 2) + 'ms ease';
+          nextLayer.style.opacity = '1';
+        }, duration / 2);
+        break;
+
+      case 'slide-left':
+        nextLayer.style.transform = 'translateX(0)';
+        nextLayer.style.opacity = '1';
+        currLayer.style.transform = 'translateX(-35%)';
+        currLayer.style.opacity = '0';
+        break;
+
+      case 'slide-right':
+        nextLayer.style.transform = 'translateX(0)';
+        nextLayer.style.opacity = '1';
+        currLayer.style.transform = 'translateX(35%)';
+        currLayer.style.opacity = '0';
+        break;
+
+      case 'slide-up':
+        nextLayer.style.transform = 'translateY(0)';
+        nextLayer.style.opacity = '1';
+        currLayer.style.transform = 'translateY(-30%)';
+        currLayer.style.opacity = '0';
+        break;
+
+      case 'slide-down':
+        nextLayer.style.transform = 'translateY(0)';
+        nextLayer.style.opacity = '1';
+        currLayer.style.transform = 'translateY(30%)';
+        currLayer.style.opacity = '0';
+        break;
+
+      case 'zoom-in':
+        nextLayer.style.transform = 'scale(1)';
+        nextLayer.style.opacity = '1';
+        currLayer.style.opacity = '0';
+        currLayer.style.transform = 'scale(0.92)';
+        break;
+
+      case 'zoom-out':
+      case 'soft-zoom':
+        nextLayer.style.transform = 'scale(1)';
+        nextLayer.style.opacity = '1';
+        currLayer.style.opacity = '0';
+        currLayer.style.transform = 'scale(1.08)';
+        break;
+
+      case 'kenburns':
+        nextLayer.style.opacity = '1';
+        currLayer.style.opacity = '0';
+        nextImg.style.transition = 'none';
+        nextImg.style.transform = 'scale(1) translate(0,0)';
+        void nextImg.offsetWidth;
+        var hold = this.getHoldMs();
+        nextImg.style.transition = 'transform ' + (hold + duration) + 'ms ease-out';
+        nextImg.style.transform = 'scale(1.1) translate(-2%, -1.5%)';
+        break;
+
+      case 'push-left':
+        nextLayer.style.transform = 'translateX(0)';
+        currLayer.style.transform = 'translateX(-100%)';
+        break;
+
+      case 'push-right':
+        nextLayer.style.transform = 'translateX(0)';
+        currLayer.style.transform = 'translateX(100%)';
+        break;
+
+      default:
+        nextLayer.style.opacity = '1';
+        currLayer.style.opacity = '0';
+    }
   },
 
   async preloadAhead() {
     for (let i = 1; i <= 3; i++) {
       const photo = this.getPhotoAtOffset(i);
       if (photo) {
-        Drive.preloadImage(photo.url).catch(() => {});
+        Drive.preloadImage(photo.url).catch(function () {});
       }
     }
-  },
-
-  scheduleNext(delay) {
-    if (this.timer) clearTimeout(this.timer);
-    const ms = delay || (this.settings.duration * 1000);
-    this.timer = setTimeout(() => this.next(), ms);
   },
 
   shuffleCurrentFolder() {
@@ -459,7 +496,9 @@ const Slideshow = {
     if (!folder || !folder.photos) return;
     for (let i = folder.photos.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [folder.photos[i], folder.photos[j]] = [folder.photos[j], folder.photos[i]];
+      var tmp = folder.photos[i];
+      folder.photos[i] = folder.photos[j];
+      folder.photos[j] = tmp;
     }
   },
 
@@ -472,7 +511,9 @@ const Slideshow = {
     if (!this.onStatus) return;
     const src = this.sources[photo.sourceIndex];
     this.onStatus(
-      `Folder ${photo.sourceIndex + 1}/${this.sources.length} · Ảnh ${photo.photoIndex + 1}/${src.photos.length} · ${photo.name}`
+      'Folder ' + (photo.sourceIndex + 1) + '/' + this.sources.length +
+      ' · Ảnh ' + (photo.photoIndex + 1) + '/' + src.photos.length +
+      ' · ' + photo.name
     );
   }
 };

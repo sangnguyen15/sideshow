@@ -14,6 +14,7 @@
   const btnSaveKey = document.getElementById('btn-save-key');
   const btnStart = document.getElementById('btn-start');
   const btnResume = document.getElementById('btn-resume');
+  const btnApplyNow = document.getElementById('btn-apply-now');
   const btnResetProgress = document.getElementById('btn-reset-progress');
   const statusBar = document.getElementById('status-bar');
 
@@ -78,6 +79,15 @@
 
     btnStart.addEventListener('click', () => startSlideshow(false));
     btnResume.addEventListener('click', () => startSlideshow(true));
+    btnApplyNow.addEventListener('click', () => {
+      saveSettingsFromUI();
+      if (Slideshow.isPlaying) {
+        // Áp dụng ngay: chuyển sang ảnh tiếp theo với setting mới
+        Slideshow.applySettingsNow();
+      } else {
+        alert('Chưa đang chiếu. Setting đã được lưu, sẽ dùng khi bắt đầu chiếu.');
+      }
+    });
     btnResetProgress.addEventListener('click', () => {
       Storage.clearProgress();
       Storage.clearRecent();

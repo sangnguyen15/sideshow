@@ -43,14 +43,17 @@
         <h2>Cài đặt Slideshow</h2>
 
         <div class="setting-row">
-          <label>Thời gian mỗi ảnh (giây)</label>
-          <input type="number" id="setting-duration" min="2" max="30" value="5" />
+          <label>Thời gian ảnh đứng yên (giây)</label>
+          <input type="number" id="setting-duration" min="1" max="60" value="5" />
         </div>
 
         <div class="setting-row">
-          <label>Thời gian hiệu ứng chuyển (giây)</label>
-          <input type="number" id="setting-transition" min="0.3" max="3" step="0.1" value="1.0" />
+          <label>Thời gian hiệu ứng di chuyển (giây)</label>
+          <input type="number" id="setting-transition" min="0.5" max="60" step="0.5" value="8" />
         </div>
+        <p class="hint" style="margin-top:-8px;margin-bottom:12px">
+          Ví dụ: hiệu ứng 8s = ảnh di chuyển/zoom trong 8 giây, sau đó đứng yên theo thời gian ở trên.
+        </p>
 
         <div class="setting-row">
           <label>Hiệu ứng chuyển cảnh</label>
@@ -118,6 +121,7 @@
       <section class="section actions">
         <button id="btn-start" class="btn btn-primary">Bắt đầu chiếu</button>
         <button id="btn-resume" class="btn">Tiếp tục từ vị trí cũ</button>
+        <button id="btn-apply-now" class="btn">Áp dụng ngay (đổi setting đang chạy)</button>
         <button id="btn-reset-progress" class="btn btn-secondary">Reset vị trí chiếu</button>
       </section>
     </div>

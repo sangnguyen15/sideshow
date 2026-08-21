@@ -27,7 +27,7 @@ const Storage = {
   getSettings() {
     const defaults = {
       duration: 5,
-      transition: 1.0,
+      transition: 8,
       effect: 'random',
       fit: 'contain',
       idle: 8,
