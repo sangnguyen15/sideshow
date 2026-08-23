@@ -1,24 +1,20 @@
 /**
- * app.js – Điều khiển giao diện + kết nối các module
+ * app.js – Giao diện + lấy cấu hình từ Google Apps Script + điều khiển slideshow
  */
 
 (function () {
-  // Elements
   const panel = document.getElementById('control-panel');
   const btnOpenPanel = document.getElementById('btn-open-panel');
   const btnClosePanel = document.getElementById('btn-close-panel');
-  const inputLink = document.getElementById('input-drive-link');
-  const btnAddSource = document.getElementById('btn-add-source');
   const sourceList = document.getElementById('source-list');
-  const inputApiKey = document.getElementById('input-api-key');
-  const btnSaveKey = document.getElementById('btn-save-key');
+  const sourcesHint = document.getElementById('sources-hint');
+  const btnRefreshSources = document.getElementById('btn-refresh-sources');
   const btnStart = document.getElementById('btn-start');
   const btnResume = document.getElementById('btn-resume');
   const btnApplyNow = document.getElementById('btn-apply-now');
   const btnResetProgress = document.getElementById('btn-reset-progress');
   const statusBar = document.getElementById('status-bar');
 
-  // Settings inputs
   const settingDuration = document.getElementById('setting-duration');
   const settingTransition = document.getElementById('setting-transition');
   const settingEffect = document.getElementById('setting-effect');
@@ -27,19 +23,16 @@
   const settingShuffle = document.getElementById('setting-shuffle');
   const settingResume = document.getElementById('setting-resume');
 
-  let sources = []; // {id, name, link, photos: []}
+  // Runtime state
+  let sources = [];          // {id, name, link, photos: []}
+  let apiKey = '';
   let idleTimer = null;
   let isIdle = false;
+  let isLoadingConfig = false;
 
-  // ---------- Init ----------
   function init() {
-    // Load saved data
-    sources = Storage.getSources();
     const settings = Storage.getSettings();
-    const apiKey = Storage.getApiKey();
 
-    // Fill UI
-    inputApiKey.value = apiKey;
     settingDuration.value = settings.duration;
     settingTransition.value = settings.transition;
     settingEffect.value = settings.effect;
@@ -48,168 +41,229 @@
     settingShuffle.checked = settings.shuffle;
     settingResume.checked = settings.resume;
 
-    renderSourceList();
     bindEvents();
     resetIdleTimer();
-
-    // Init slideshow engine
     Slideshow.init(settings, updateStatus, showError);
 
-    // Auto start if có nguồn + đã có progress (tiện cho TV box)
-    if (sources.length > 0 && apiKey && settings.resume) {
-      // Không tự chạy ngay để người dùng kịp chỉnh, chỉ khi bấm
-    }
+    window.addEventListener('offline', function () {
+      if (Slideshow.isPlaying) Slideshow.handleOffline();
+    });
+    window.addEventListener('online', function () {
+      Slideshow.handleOnline();
+    });
+
+    // Tự load cấu hình từ GAS rồi tự chiếu
+    loadConfigAndStart(true);
   }
 
-  // ---------- Events ----------
   function bindEvents() {
     btnClosePanel.addEventListener('click', hidePanel);
     btnOpenPanel.addEventListener('click', showPanel);
 
-    btnAddSource.addEventListener('click', addSource);
-    inputLink.addEventListener('keydown', e => {
-      if (e.key === 'Enter') addSource();
+    btnRefreshSources.addEventListener('click', function () {
+      // Làm mới: dừng + load lại từ đầu
+      loadConfigAndStart(false);
     });
 
-    btnSaveKey.addEventListener('click', () => {
-      const key = inputApiKey.value.trim();
-      Storage.saveApiKey(key);
-      alert('Đã lưu API Key');
-    });
-
-    btnStart.addEventListener('click', () => startSlideshow(false));
-    btnResume.addEventListener('click', () => startSlideshow(true));
-    btnApplyNow.addEventListener('click', () => {
+    btnStart.addEventListener('click', function () { startSlideshow(false); });
+    btnResume.addEventListener('click', function () { startSlideshow(true); });
+    btnApplyNow.addEventListener('click', function () {
       saveSettingsFromUI();
       if (Slideshow.isPlaying) {
-        // Áp dụng ngay: chuyển sang ảnh tiếp theo với setting mới
         Slideshow.applySettingsNow();
       } else {
-        alert('Chưa đang chiếu. Setting đã được lưu, sẽ dùng khi bắt đầu chiếu.');
+        alert('Chưa đang chiếu. Setting đã được lưu.');
       }
     });
-    btnResetProgress.addEventListener('click', () => {
+    btnResetProgress.addEventListener('click', function () {
       Storage.clearProgress();
       Storage.clearRecent();
       alert('Đã reset vị trí chiếu');
     });
 
-    // Settings change → save
-    [settingDuration, settingTransition, settingEffect, settingFit, settingIdle, settingShuffle, settingResume].forEach(el => {
+    [settingDuration, settingTransition, settingEffect, settingFit, settingIdle, settingShuffle, settingResume].forEach(function (el) {
       el.addEventListener('change', saveSettingsFromUI);
     });
 
-    // Idle detection
-    ['mousemove', 'mousedown', 'keydown', 'touchstart', 'pointerdown'].forEach(evt => {
+    ['mousemove', 'mousedown', 'keydown', 'touchstart', 'pointerdown'].forEach(function (evt) {
       document.addEventListener(evt, resetIdleTimer, { passive: true });
     });
 
-    // Remote / keyboard shortcuts
-    document.addEventListener('keydown', e => {
+    document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') {
-        if (isIdle) {
-          showPanel();
-        } else {
-          hidePanel();
-        }
-      }
-      if (e.key === ' ' || e.key === 'Enter') {
-        if (!panel.classList.contains('hidden')) return;
-        // Space = pause/resume nếu cần sau này
+        if (isIdle) showPanel();
+        else hidePanel();
       }
     });
   }
 
-  // ---------- Sources ----------
-  async function addSource() {
-    const link = inputLink.value.trim();
-    if (!link) return;
-
-    const folderId = Drive.extractFolderId(link);
-    if (!folderId) {
-      alert('Không nhận diện được Folder ID từ link.\nHãy dán đúng link folder Google Drive.');
-      return;
-    }
-
-    // Tránh trùng
-    if (sources.some(s => s.id === folderId)) {
-      alert('Folder này đã được thêm rồi.');
-      return;
-    }
-
-    const apiKey = Storage.getApiKey() || inputApiKey.value.trim();
-    if (!apiKey) {
-      alert('Vui lòng nhập Google Drive API Key trước.');
-      return;
-    }
-
-    btnAddSource.disabled = true;
-    btnAddSource.textContent = 'Đang tải...';
-
-    try {
-      const photos = await Drive.listImages(folderId, apiKey);
-      if (photos.length === 0) {
-        alert('Folder không có ảnh hoặc chưa share "Anyone with the link".');
+  /**
+   * Gọi Google Apps Script lấy apiKey + danh sách sources
+   */
+  function fetchConfigFromGAS() {
+    return new Promise(function (resolve, reject) {
+      var url = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.GAS_URL) ? APP_CONFIG.GAS_URL : '';
+      if (!url || url.indexOf('DÁN_URL_GAS') !== -1) {
+        reject(new Error('Chưa cấu hình GAS_URL trong js/config.js'));
         return;
       }
 
-      const name = `Folder ${sources.length + 1} (${photos.length} ảnh)`;
-      sources.push({
-        id: folderId,
-        name,
-        link,
-        photos
-      });
+      var timeout = (APP_CONFIG && APP_CONFIG.GAS_TIMEOUT) || 15000;
+      var timer = setTimeout(function () {
+        reject(new Error('Hết thời gian chờ Google Sheet (timeout)'));
+      }, timeout);
 
-      Storage.saveSources(sources.map(s => ({
-        id: s.id,
-        name: s.name,
-        link: s.link
-        // không lưu photos vào localStorage (quá lớn)
-      })));
+      // Dùng fetch nếu có, fallback XMLHttpRequest cho máy cũ
+      if (typeof fetch === 'function') {
+        fetch(url, { method: 'GET', redirect: 'follow' })
+          .then(function (res) {
+            clearTimeout(timer);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
+          })
+          .then(resolve)
+          .catch(function (err) {
+            clearTimeout(timer);
+            reject(err);
+          });
+      } else {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.onload = function () {
+          clearTimeout(timer);
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              resolve(JSON.parse(xhr.responseText));
+            } catch (e) {
+              reject(new Error('JSON không hợp lệ từ GAS'));
+            }
+          } else {
+            reject(new Error('HTTP ' + xhr.status));
+          }
+        };
+        xhr.onerror = function () {
+          clearTimeout(timer);
+          reject(new Error('Lỗi mạng khi gọi GAS'));
+        };
+        xhr.send();
+      }
+    });
+  }
 
-      inputLink.value = '';
+  /**
+   * Load config từ GAS → lấy ảnh Drive → (tuỳ chọn) bắt đầu chiếu
+   * @param {boolean} autoStart - true = tự chiếu sau khi load
+   */
+  async function loadConfigAndStart(autoStart) {
+    if (isLoadingConfig) return;
+    isLoadingConfig = true;
+
+    Slideshow.stop();
+    Slideshow.showLoading(true);
+    if (sourcesHint) sourcesHint.textContent = 'Đang tải cấu hình từ Google Sheet...';
+    sourceList.innerHTML = '';
+
+    try {
+      var data = await fetchConfigFromGAS();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      if (!data.apiKey) {
+        throw new Error('Sheet chưa có api_key trong tab Config');
+      }
+      if (!data.sources || data.sources.length === 0) {
+        throw new Error('Sheet chưa có thư mục ảnh nào (tab Sources)');
+      }
+
+      apiKey = data.apiKey;
+
+      // Build sources (chưa có photos)
+      sources = data.sources.map(function (s, idx) {
+        var folderId = Drive.extractFolderId(s.link);
+        return {
+          id: folderId || ('src-' + idx),
+          name: s.name || ('Folder ' + (idx + 1)),
+          link: s.link,
+          photos: []
+        };
+      }).filter(function (s) { return s.id; });
+
+      if (sources.length === 0) {
+        throw new Error('Không trích xuất được Folder ID từ các link trong Sheet');
+      }
+
+      // Lấy danh sách ảnh từng folder
+      for (var i = 0; i < sources.length; i++) {
+        if (sourcesHint) {
+          sourcesHint.textContent = 'Đang tải ảnh folder ' + (i + 1) + '/' + sources.length + '...';
+        }
+        try {
+          sources[i].photos = await Drive.listImages(sources[i].id, apiKey);
+        } catch (err) {
+          console.warn('Lỗi folder', sources[i].name, err);
+          sources[i].photos = [];
+        }
+      }
+
+      // Bỏ folder không có ảnh
+      sources = sources.filter(function (s) { return s.photos && s.photos.length > 0; });
+
+      if (sources.length === 0) {
+        throw new Error('Không lấy được ảnh nào. Kiểm tra folder đã share "Anyone with the link" chưa.');
+      }
+
       renderSourceList();
-      alert(`Đã thêm ${photos.length} ảnh từ folder.`);
+      if (sourcesHint) {
+        sourcesHint.textContent = 'Đã tải ' + sources.length + ' thư mục. Cập nhật lúc ' + new Date().toLocaleTimeString();
+      }
+
+      Slideshow.showLoading(false);
+      isLoadingConfig = false;
+
+      if (autoStart) {
+        var settings = Storage.getSettings();
+        startSlideshow(!!settings.resume);
+      } else {
+        // Làm mới thủ công → luôn bắt đầu lại từ đầu
+        startSlideshow(false);
+      }
     } catch (err) {
       console.error(err);
-      alert('Lỗi khi lấy ảnh: ' + (err.message || err));
-    } finally {
-      btnAddSource.disabled = false;
-      btnAddSource.textContent = 'Thêm';
+      Slideshow.showLoading(false);
+      isLoadingConfig = false;
+      if (sourcesHint) sourcesHint.textContent = 'Lỗi: ' + (err.message || err);
+      renderSourceList();
+      alert('Không tải được cấu hình:\n' + (err.message || err));
     }
   }
 
   function renderSourceList() {
     sourceList.innerHTML = '';
-    sources.forEach((s, idx) => {
-      const li = document.createElement('li');
-      li.innerHTML = `
-        <span>${s.name || s.id}</span>
-        <button class="remove" data-idx="${idx}" title="Xóa">✕</button>
-      `;
+    if (!sources.length) {
+      var li = document.createElement('li');
+      li.textContent = 'Chưa có thư mục nào';
       sourceList.appendChild(li);
-    });
-
-    sourceList.querySelectorAll('.remove').forEach(btn => {
-      btn.addEventListener('click', e => {
-        const idx = parseInt(e.target.dataset.idx, 10);
-        sources.splice(idx, 1);
-        Storage.saveSources(sources.map(s => ({
-          id: s.id,
-          name: s.name,
-          link: s.link
-        })));
-        renderSourceList();
-      });
+      return;
+    }
+    sources.forEach(function (s) {
+      var li = document.createElement('li');
+      var count = (s.photos && s.photos.length) ? s.photos.length : 0;
+      li.innerHTML = '<span>' + escapeHtml(s.name) + ' <small style="opacity:0.6">(' + count + ' ảnh)</small></span>';
+      sourceList.appendChild(li);
     });
   }
 
-  // ---------- Settings ----------
+  function escapeHtml(str) {
+    var d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
   function saveSettingsFromUI() {
-    const settings = {
+    var settings = {
       duration: parseInt(settingDuration.value, 10) || 5,
-      transition: parseFloat(settingTransition.value) || 1.0,
+      transition: parseFloat(settingTransition.value) || 8,
       effect: settingEffect.value,
       fit: settingFit.value || 'contain',
       idle: parseInt(settingIdle.value, 10) || 8,
@@ -220,38 +274,29 @@
     Slideshow.settings = settings;
   }
 
-  // ---------- Start slideshow ----------
   async function startSlideshow(resume) {
     saveSettingsFromUI();
 
-    const apiKey = Storage.getApiKey() || inputApiKey.value.trim();
     if (!apiKey) {
-      alert('Chưa có API Key');
+      alert('Chưa có API Key (lấy từ Google Sheet). Bấm "Làm mới danh sách thư mục".');
+      return;
+    }
+    if (!sources.length) {
+      alert('Chưa có thư mục ảnh. Kiểm tra Google Sheet hoặc bấm Làm mới.');
       return;
     }
 
-    if (sources.length === 0) {
-      alert('Chưa có nguồn ảnh nào');
-      return;
-    }
-
-    // Nếu sources chưa có photos (mới load từ localStorage) → fetch lại
-    const needFetch = sources.some(s => !s.photos || s.photos.length === 0);
+    // Nếu thiếu photos (hiếm) → fetch lại
+    var needFetch = sources.some(function (s) { return !s.photos || !s.photos.length; });
     if (needFetch) {
       Slideshow.showLoading(true);
       try {
-        for (const s of sources) {
-          if (!s.photos || s.photos.length === 0) {
-            s.photos = await Drive.listImages(s.id, apiKey);
+        for (var i = 0; i < sources.length; i++) {
+          if (!sources[i].photos || !sources[i].photos.length) {
+            sources[i].photos = await Drive.listImages(sources[i].id, apiKey);
           }
         }
-        // Loại bỏ folder rỗng
-        sources = sources.filter(s => s.photos && s.photos.length > 0);
-        if (sources.length === 0) {
-          alert('Không lấy được ảnh từ các folder.');
-          Slideshow.showLoading(false);
-          return;
-        }
+        sources = sources.filter(function (s) { return s.photos && s.photos.length; });
       } catch (err) {
         alert('Lỗi tải ảnh: ' + err.message);
         Slideshow.showLoading(false);
@@ -260,12 +305,13 @@
       Slideshow.showLoading(false);
     }
 
-    // Shuffle nếu cần
     if (Slideshow.settings.shuffle) {
-      sources.forEach(s => {
-        for (let i = s.photos.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [s.photos[i], s.photos[j]] = [s.photos[j], s.photos[i]];
+      sources.forEach(function (s) {
+        for (var i = s.photos.length - 1; i > 0; i--) {
+          var j = Math.floor(Math.random() * (i + 1));
+          var t = s.photos[i];
+          s.photos[i] = s.photos[j];
+          s.photos[j] = t;
         }
       });
     }
@@ -275,7 +321,6 @@
     await Slideshow.start(resume);
   }
 
-  // ---------- Panel & Idle ----------
   function hidePanel() {
     panel.classList.add('hidden');
     btnOpenPanel.classList.add('show');
@@ -295,9 +340,8 @@
     document.body.classList.remove('idle');
     isIdle = false;
 
-    const idleSec = parseInt(settingIdle.value, 10) || 8;
-    idleTimer = setTimeout(() => {
-      // Chỉ ẩn khi đang chiếu
+    var idleSec = parseInt(settingIdle.value, 10) || 8;
+    idleTimer = setTimeout(function () {
       if (Slideshow.isPlaying) {
         document.body.classList.add('idle');
         isIdle = true;
@@ -315,6 +359,5 @@
     alert(msg);
   }
 
-  // ---------- Boot ----------
   init();
 })();

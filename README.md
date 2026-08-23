@@ -1,89 +1,151 @@
-# Family Photo Slideshow – Google Drive
+# Family Photo Slideshow – Google Drive + Google Sheet
 
-Web app chiếu slideshow ảnh gia đình từ nhiều folder Google Drive đã share.  
-Tối ưu cho Android TV Box, chạy mượt, preload thông minh, hỗ trợ nhiều tỷ lệ màn hình.
+Web app chiếu slideshow ảnh gia đình.  
+Cấu hình (API Key + danh sách folder) lấy từ **Google Sheet** qua **Google Apps Script**.
 
-## Tính năng chính
+Tối ưu cho Android TV Box, preload thông minh, nhiều hiệu ứng, full ảnh khi đứng yên.
 
-- Thêm nhiều link folder Google Drive (Anyone with the link)
-- Chiếu lần lượt theo từng folder
-- Preload 2–3 ảnh phía trước → không bị trắng màn hình
-- Double buffering + nhiều hiệu ứng nhẹ (Fade, Slide, Zoom, Ken Burns, Push…)
-- Tách riêng thời gian hiển thị ảnh và thời gian hiệu ứng chuyển
-- **Khi ảnh đứng yên: ưu tiên full ảnh (không cắt nội dung)** – Hướng A
-- Trong lúc chuyển cảnh vẫn có hiệu ứng động
-- Tự ẩn giao diện sau X giây không tương tác
-- Lưu vị trí chiếu → mở lại tiếp tục đúng chỗ
-- Giảm chiếu trùng ảnh gần đây
-- Chạy tĩnh trên GitHub Pages, không cần server / database
+---
 
-## Cách sử dụng nhanh
+## Luồng hoạt động
 
-### 1. Tạo Google Drive API Key (bắt buộc)
+```
+Bạn sửa Google Sheet
+        ↓
+Google Apps Script (Web App) đọc Sheet → trả JSON
+        ↓
+Web App (GitHub Pages) gọi GAS → lấy apiKey + folder links
+        ↓
+Gọi Google Drive API lấy ảnh → chiếu slideshow
+```
+
+- Nhiều thiết bị cùng dùng 1 Sheet.
+- Không nhập API Key trên giao diện.
+- Bấm **Làm mới danh sách thư mục** → dừng và load lại từ đầu.
+
+---
+
+## Bước 1: Tạo Google Sheet
+
+1. Tạo file Google Sheet mới.
+2. Đổi tên 2 tab:
+
+### Tab `Config`
+
+| A (key)  | B (value)        |
+|----------|------------------|
+| api_key  | AIzaSy... (API Key của bạn) |
+
+### Tab `Sources`
+
+| A (name)         | B (link)                                         | C (enabled) | D (order) |
+|------------------|--------------------------------------------------|-------------|-----------|
+| Album gia đình   | https://drive.google.com/drive/folders/FOLDER_ID | TRUE        | 1         |
+| Ảnh cưới         | https://drive.google.com/drive/folders/FOLDER_ID | TRUE        | 2         |
+
+- `enabled = FALSE` → bỏ qua folder đó.
+- Folder Drive phải share **Anyone with the link → Viewer**.
+
+3. Copy **Sheet ID** từ URL:
+   `https://docs.google.com/spreadsheets/d/SHEET_ID_Ở_ĐÂY/edit`
+
+---
+
+## Bước 2: Tạo Google Drive API Key
 
 1. Vào [Google Cloud Console](https://console.cloud.google.com/)
-2. Tạo project mới (hoặc chọn project có sẵn)
-3. Vào **APIs & Services → Library** → tìm **Google Drive API** → Enable
-4. Vào **APIs & Services → Credentials** → **Create Credentials → API Key**
-5. (Khuyến nghị) Restrict key chỉ cho Google Drive API
-6. Copy API Key và dán vào web app
+2. Tạo project → Enable **Google Drive API**
+3. Credentials → Create API Key
+4. (Khuyến nghị) Restrict key chỉ cho Google Drive API
+5. Dán API Key vào tab **Config** cột B
 
-### 2. Share folder ảnh
+---
 
-- Mở folder trên Google Drive
-- Share → **Anyone with the link** → Viewer
-- Copy link folder
+## Bước 3: Google Apps Script
 
-### 3. Chạy web app
+1. Mở Sheet → **Extensions → Apps Script**
+2. Xóa code mặc định, dán toàn bộ nội dung file `gas/Code.gs`
+3. Sửa dòng:
+   ```js
+   var SHEET_ID = 'DÁN_SHEET_ID_VÀO_ĐÂY';
+   ```
+4. Lưu → **Deploy → New deployment**
+   - Type: **Web app**
+   - Execute as: **Me**
+   - Who has access: **Anyone**
+5. Authorize → Copy **Web App URL**
+   (dạng `https://script.google.com/macros/s/xxxxx/exec`)
 
-- Mở trang web (GitHub Pages hoặc mở file `index.html` local)
-- Dán API Key → Lưu
-- Dán link folder → Thêm
-- Chỉnh thời gian / hiệu ứng / tỷ lệ màn hình
-- Bấm **Bắt đầu chiếu** hoặc **Tiếp tục từ vị trí cũ**
+---
 
-## Cài đặt trên Android TV Box (khuyến nghị)
+## Bước 4: Cấu hình Web App
 
-1. Cài **Fully Kiosk Browser**
-2. Đặt Start URL = link GitHub Pages của bạn
-3. Bật các tùy chọn:
-   - Fullscreen Mode
-   - Keep Screen On
-   - Keep Screen On while in Fullscreen Mode
-   - Launch on Boot
-4. Trong hệ thống Android TV:
-   - Screen saver = None / Never
-   - Developer options → Stay awake = ON
+1. Mở file `js/config.js`
+2. Dán URL GAS vào:
+   ```js
+   GAS_URL: 'https://script.google.com/macros/s/xxxxx/exec',
+   ```
+3. Đưa code lên GitHub → bật GitHub Pages  
+   (hoặc mở `index.html` trực tiếp để test)
+
+---
+
+## Bước 5: Chạy
+
+1. Mở trang web app
+2. App tự gọi GAS → lấy danh sách folder + API Key → tải ảnh → **tự bắt đầu chiếu**
+3. Muốn cập nhật folder mới từ Sheet → mở panel cài đặt → bấm **Làm mới danh sách thư mục**  
+   (sẽ dừng và chiếu lại từ đầu với danh sách mới)
+
+---
+
+## Giao diện cài đặt
+
+| Mục                              | Có hiện? | Ghi chú                          |
+|----------------------------------|----------|----------------------------------|
+| Danh sách thư mục ảnh            | Có       | Tên + số lượng ảnh               |
+| Nút Làm mới danh sách thư mục    | Có       | Load lại từ Sheet, chiếu từ đầu  |
+| Thời gian / hiệu ứng / full ảnh  | Có       | Lưu trên từng thiết bị           |
+| API Key                          | Không    | Chỉ lấy từ Sheet                 |
+| Link GAS / Sheet                 | Không    | Ghi trong code                   |
+
+---
+
+## Cài đặt trên Android TV Box
+
+1. Cài Fully Kiosk Browser (hoặc trình duyệt hỗ trợ)
+2. Start URL = link GitHub Pages
+3. Bật: Fullscreen, Keep Screen On, Launch on Boot
+4. Hệ thống: Screen saver = Never, Stay awake = ON
+
+---
 
 ## Cấu trúc thư mục
 
 ```
 google-drive-slideshow/
 ├── index.html
-├── css/
-│   └── style.css
+├── css/style.css
 ├── js/
-│   ├── storage.js      # localStorage
-│   ├── drive.js        # Google Drive API
-│   ├── slideshow.js    # Preload + double buffer + effects
-│   └── app.js          # Giao diện + điều khiển
+│   ├── config.js       ← Dán GAS_URL ở đây
+│   ├── storage.js
+│   ├── drive.js
+│   ├── slideshow.js
+│   └── app.js
+├── gas/
+│   └── Code.gs         ← Code Google Apps Script
 └── README.md
 ```
 
-## Lưu ý quan trọng
+---
 
-- Folder **phải** share “Anyone with the link”, nếu không API Key sẽ không đọc được.
-- API Key nên để mỗi người tự tạo (không dùng chung) để tránh vượt quota.
-- Ảnh được lấy ở kích thước vừa phải (thumbnail s1920) để load nhanh trên TV Box.
-- Dữ liệu nguồn + cài đặt + vị trí chiếu được lưu bằng localStorage trên trình duyệt.
+## Lưu ý
 
-## Phát triển tiếp (tùy chọn)
-
-- Thêm nhạc nền
-- Hỗ trợ Google Photos
-- Xuất/nhập cấu hình
-- Chế độ trộn tất cả folder
+- Folder Drive phải share **Anyone with the link**.
+- GAS Web App để **Anyone** thì web app mới gọi được.
+- API Key nên restrict chỉ Drive API.
+- Android 4.4: WebView rất cũ, nên dùng box Android 7+ hoặc cài trình duyệt mới hơn.
 
 ---
 
-MIT License – Tự do sử dụng và chỉnh sửa.
+MIT License

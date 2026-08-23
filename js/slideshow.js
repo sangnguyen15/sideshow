@@ -14,7 +14,9 @@ const Slideshow = {
   currentSourceIndex: 0,
   currentPhotoIndex: 0,
   isPlaying: false,
+  isOffline: false,
   timer: null,
+  offlineCheckTimer: null,
   settings: {},
   recentIds: new Set(),
 
@@ -105,6 +107,11 @@ const Slideshow = {
       clearTimeout(this.timer);
       this.timer = null;
     }
+    if (this.offlineCheckTimer) {
+      clearInterval(this.offlineCheckTimer);
+      this.offlineCheckTimer = null;
+    }
+    this.showOffline(false);
   },
 
   /**
@@ -262,10 +269,21 @@ const Slideshow = {
       return;
     }
 
+    // Kiểm tra mạng trước khi tải ảnh mới
+    if (!navigator.onLine) {
+      this.handleOffline();
+      return;
+    }
+
     try {
       await Drive.preloadImage(photo.url);
     } catch (e) {
       console.warn('Skip image', e);
+      // Nếu lỗi có vẻ do mạng
+      if (!navigator.onLine) {
+        this.handleOffline();
+        return;
+      }
       this.currentPhotoIndex++;
       this.scheduleAfterHold();
       return;
@@ -505,6 +523,45 @@ const Slideshow = {
   showLoading(show) {
     const el = document.getElementById('loading-overlay');
     if (el) el.classList.toggle('show', show);
+  },
+
+  showOffline(show) {
+    const el = document.getElementById('offline-overlay');
+    if (el) el.classList.toggle('show', show);
+    this.isOffline = !!show;
+  },
+
+  /**
+   * Khi mất mạng: giữ ảnh hiện tại, hiện thông báo, dừng chuyển ảnh.
+   * Khi có mạng lại: ẩn thông báo và tiếp tục.
+   */
+  handleOffline() {
+    if (this.isOffline) return;
+    this.showOffline(true);
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
+    // Kiểm tra mạng định kỳ
+    if (this.offlineCheckTimer) clearInterval(this.offlineCheckTimer);
+    this.offlineCheckTimer = setInterval(() => {
+      if (navigator.onLine) {
+        this.handleOnline();
+      }
+    }, 3000);
+  },
+
+  handleOnline() {
+    if (!this.isOffline) return;
+    this.showOffline(false);
+    if (this.offlineCheckTimer) {
+      clearInterval(this.offlineCheckTimer);
+      this.offlineCheckTimer = null;
+    }
+    // Tiếp tục chiếu nếu đang ở chế độ playing
+    if (this.isPlaying) {
+      this.scheduleAfterHold();
+    }
   },
 
   updateStatus(photo) {

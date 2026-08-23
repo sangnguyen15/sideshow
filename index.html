@@ -17,6 +17,13 @@
       <div class="spinner"></div>
       <p>Đang tải ảnh...</p>
     </div>
+    <div id="offline-overlay">
+      <div class="offline-box">
+        <div class="offline-icon">📶</div>
+        <p class="offline-title">Mất kết nối mạng</p>
+        <p class="offline-sub">Đang giữ ảnh hiện tại · Tự chạy tiếp khi có mạng</p>
+      </div>
+    </div>
   </div>
 
   <!-- ========== CONTROL PANEL ========== -->
@@ -27,15 +34,12 @@
     </div>
 
     <div class="panel-body">
-      <!-- Sources -->
+      <!-- Sources (chỉ xem, lấy từ Google Sheet qua GAS) -->
       <section class="section">
-        <h2>Nguồn ảnh (Google Drive)</h2>
-        <div class="input-group">
-          <input type="text" id="input-drive-link" placeholder="Dán link folder Google Drive (Anyone with the link)" />
-          <button id="btn-add-source" class="btn">Thêm</button>
-        </div>
+        <h2>Thư mục ảnh đang dùng</h2>
         <ul id="source-list" class="source-list"></ul>
-        <p class="hint">Folder phải được chia sẻ: Anyone with the link → Viewer</p>
+        <p class="hint" id="sources-hint">Danh sách lấy từ Google Sheet. Bấm nút bên dưới để cập nhật.</p>
+        <button id="btn-refresh-sources" class="btn" style="width:100%;margin-top:10px">Làm mới danh sách thư mục</button>
       </section>
 
       <!-- Settings -->
@@ -103,20 +107,6 @@
         </div>
       </section>
 
-      <!-- API Key -->
-      <section class="section">
-        <h2>Google Drive API Key</h2>
-        <div class="input-group">
-          <input type="password" id="input-api-key" placeholder="Nhập API Key của bạn" />
-          <button id="btn-save-key" class="btn">Lưu</button>
-        </div>
-        <p class="hint">
-          Tạo API Key miễn phí tại
-          <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a>
-          (bật Drive API)
-        </p>
-      </section>
-
       <!-- Actions -->
       <section class="section actions">
         <button id="btn-start" class="btn btn-primary">Bắt đầu chiếu</button>
@@ -133,6 +123,7 @@
   <!-- Status bar (optional info) -->
   <div id="status-bar"></div>
 
+  <script src="js/config.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/drive.js"></script>
   <script src="js/slideshow.js"></script>

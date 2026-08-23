@@ -99,6 +99,59 @@ html, body {
   to { transform: rotate(360deg); }
 }
 
+/* Offline overlay – chữ đủ lớn để đọc từ xa */
+#offline-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 15;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+#offline-overlay.show {
+  opacity: 1;
+}
+
+.offline-box {
+  text-align: center;
+  padding: 28px 40px;
+  background: rgba(20, 20, 25, 0.88);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  max-width: 90%;
+}
+
+.offline-icon {
+  font-size: 3rem;
+  margin-bottom: 12px;
+  opacity: 0.85;
+}
+
+.offline-title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 10px;
+  letter-spacing: 0.02em;
+}
+
+.offline-sub {
+  font-size: 1.15rem;
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.4;
+}
+
+@media (max-width: 600px) {
+  .offline-title { font-size: 1.5rem; }
+  .offline-sub { font-size: 1rem; }
+  .offline-icon { font-size: 2.4rem; }
+}
+
 /* ========== CONTROL PANEL ========== */
 #control-panel {
   position: fixed;
