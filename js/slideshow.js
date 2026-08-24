@@ -132,7 +132,11 @@ const Slideshow = {
       const photo = this.getPhotoAtOffset(i);
       if (!photo) break;
       try {
-        await Drive.preloadImage(photo.url);
+        var meta = await Drive.preloadImage(photo.url);
+        if (meta && meta.width) {
+          photo.width = meta.width;
+          photo.height = meta.height;
+        }
       } catch (e) {
         console.warn('Preload fail', photo.name);
       }
@@ -161,25 +165,91 @@ const Slideshow = {
     return null;
   },
 
-  applyFit(img, fit) {
-    img.classList.remove('fit-cover', 'fit-fill');
+  /**
+   * Smart fit:
+   * - User chọn cover/fill → theo setting
+   * - contain (mặc định) + ảnh ngang → contain đầy đủ
+   * - contain + ảnh dọc → phóng vừa phải (~1.30× contain, trần 90% cover), neo trên
+   */
+  applyFit(img, fit, photo) {
+    img.classList.remove('fit-cover', 'fit-fill', 'fit-portrait');
+    img.style.position = '';
+    img.style.top = '';
+    img.style.left = '';
+    img.style.right = '';
+    img.style.bottom = '';
+    img.style.maxWidth = '';
+    img.style.maxHeight = '';
+
+    fit = fit || 'contain';
+
+    // cover / fill: theo setting người dùng
     if (fit === 'cover') {
       img.style.objectFit = 'cover';
+      img.style.objectPosition = 'center center';
       img.style.width = '100%';
       img.style.height = '100%';
       img.classList.add('fit-cover');
-    } else if (fit === 'fill') {
+      return;
+    }
+    if (fit === 'fill') {
       img.style.objectFit = 'fill';
       img.style.width = '100%';
       img.style.height = '100%';
       img.classList.add('fit-fill');
-    } else {
+      return;
+    }
+
+    // contain + nhận diện ngang/dọc
+    var iw = (photo && photo.width) || img.naturalWidth || 0;
+    var ih = (photo && photo.height) || img.naturalHeight || 0;
+    var isPortrait = (iw > 0 && ih > 0 && (iw / ih) < 1.05);
+
+    if (!isPortrait || iw <= 0 || ih <= 0) {
+      // Ảnh ngang / vuông / chưa biết size → contain chuẩn
       img.style.objectFit = 'contain';
+      img.style.objectPosition = 'center center';
       img.style.width = 'auto';
       img.style.height = 'auto';
       img.style.maxWidth = '100%';
       img.style.maxHeight = '100%';
+      return;
     }
+
+    // === Ảnh dọc: phóng vừa phải, neo trên ===
+    var cw = window.innerWidth || document.documentElement.clientWidth || 1920;
+    var ch = window.innerHeight || document.documentElement.clientHeight || 1080;
+
+    var containScale = Math.min(cw / iw, ch / ih);
+    var coverScale = Math.max(cw / iw, ch / ih);
+
+    // Trung bình an toàn: 1.30× contain, không vượt 90% cover
+    var scale = Math.min(containScale * 1.30, coverScale * 0.90);
+
+    // Không upscale quá mạnh so với pixel gốc (tránh mờ trên TV 1x)
+    // Cho phép tối đa ~1.15× natural pixel để vẫn còn nét chấp nhận được
+    if (scale > 1.15) {
+      scale = 1.15;
+    }
+
+    // Vẫn phải lớn hơn contain một chút nếu có thể (nếu bị clamp 1.15)
+    if (scale < containScale) {
+      scale = containScale;
+    }
+
+    var dispW = Math.round(iw * scale);
+    var dispH = Math.round(ih * scale);
+
+    img.style.objectFit = 'fill';
+    img.style.width = dispW + 'px';
+    img.style.height = dispH + 'px';
+    img.style.maxWidth = 'none';
+    img.style.maxHeight = 'none';
+    img.style.position = 'absolute';
+    img.style.top = '0';
+    img.style.left = '50%';
+    img.style.transform = 'translateX(-50%)';
+    img.classList.add('fit-portrait');
   },
 
   showStaticCurrent() {
@@ -200,10 +270,22 @@ const Slideshow = {
     other.style.transform = '';
     other.style.transition = 'none';
 
-    this.applyFit(img, this.settings.fit || 'contain');
     img.style.transform = '';
     img.style.transition = 'none';
     img.src = photo.url;
+    // Đợi ảnh load để có natural size nếu chưa có
+    var self = this;
+    var fit = this.settings.fit || 'contain';
+    if (photo.width && photo.height) {
+      this.applyFit(img, fit, photo);
+    } else {
+      img.onload = function () {
+        photo.width = img.naturalWidth;
+        photo.height = img.naturalHeight;
+        self.applyFit(img, fit, photo);
+      };
+      this.applyFit(img, fit, photo);
+    }
 
     Storage.saveProgress({
       sourceIndex: photo.sourceIndex,
@@ -276,10 +358,13 @@ const Slideshow = {
     }
 
     try {
-      await Drive.preloadImage(photo.url);
+      var meta = await Drive.preloadImage(photo.url);
+      if (meta && meta.width) {
+        photo.width = meta.width;
+        photo.height = meta.height;
+      }
     } catch (e) {
       console.warn('Skip image', e);
-      // Nếu lỗi có vẻ do mạng
       if (!navigator.onLine) {
         this.handleOffline();
         return;
@@ -294,8 +379,18 @@ const Slideshow = {
     const effect = this.pickEffect();
     const ease = 'cubic-bezier(0.4, 0.0, 0.2, 1)';
 
-    this.applyFit(nextImg, fit);
     nextImg.src = photo.url;
+    if (photo.width && photo.height) {
+      this.applyFit(nextImg, fit, photo);
+    } else {
+      var self2 = this;
+      nextImg.onload = function () {
+        photo.width = nextImg.naturalWidth;
+        photo.height = nextImg.naturalHeight;
+        self2.applyFit(nextImg, fit, photo);
+      };
+      this.applyFit(nextImg, fit, photo);
+    }
     nextImg.style.transition = 'none';
     nextImg.style.transform = '';
     nextLayer.className = 'slide-layer next';
@@ -333,11 +428,14 @@ const Slideshow = {
       other.className = 'slide-layer';
 
       if (activeImg) {
-        this.applyFit(activeImg, fit);
         if (effect !== 'kenburns') {
           activeImg.style.transition = 'none';
-          activeImg.style.transform = '';
+          // Giữ translateX(-50%) nếu là portrait
+          if (!activeImg.classList.contains('fit-portrait')) {
+            activeImg.style.transform = '';
+          }
         }
+        this.applyFit(activeImg, fit, photo);
       }
 
       Storage.saveProgress({
@@ -512,7 +610,12 @@ const Slideshow = {
     for (let i = 1; i <= 3; i++) {
       const photo = this.getPhotoAtOffset(i);
       if (photo) {
-        Drive.preloadImage(photo.url).catch(function () {});
+        Drive.preloadImage(photo.url).then(function (meta) {
+          if (meta && meta.width) {
+            photo.width = meta.width;
+            photo.height = meta.height;
+          }
+        }).catch(function () {});
       }
     }
   },

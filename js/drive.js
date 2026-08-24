@@ -92,13 +92,29 @@ const Drive = {
    * Preload một ảnh (trả về Promise)
    */
   preloadImage(src) {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(src);
-      img.onerror = () => reject(new Error('Load failed: ' + src));
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      var done = false;
+      img.onload = function () {
+        if (done) return;
+        done = true;
+        resolve({
+          url: src,
+          width: img.naturalWidth || img.width || 0,
+          height: img.naturalHeight || img.height || 0
+        });
+      };
+      img.onerror = function () {
+        if (done) return;
+        done = true;
+        reject(new Error('Load failed: ' + src));
+      };
       img.src = src;
-      // Timeout 15s
-      setTimeout(() => reject(new Error('Timeout')), 15000);
+      setTimeout(function () {
+        if (done) return;
+        done = true;
+        reject(new Error('Timeout'));
+      }, 15000);
     });
   }
 };
