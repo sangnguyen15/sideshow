@@ -28,18 +28,11 @@ const Slideshow = {
   onError: null,
 
   effects: [
-    'fade',
-    'fade-black',
-    'slide-left',
-    'slide-right',
-    'slide-up',
-    'slide-down',
-    'zoom-in',
-    'zoom-out',
-    'kenburns',
-    'push-left',
-    'push-right',
-    'soft-zoom'
+    'slide-h',
+    'slide-v',
+    'diag-bl',
+    'diag-br',
+    'zoom-center'
   ],
 
   init(settings, onStatus, onError) {
@@ -206,13 +199,14 @@ const Slideshow = {
     var isPortrait = (iw > 0 && ih > 0 && (iw / ih) < 1.05);
 
     if (!isPortrait || iw <= 0 || ih <= 0) {
-      // Ảnh ngang / vuông / chưa biết size → contain chuẩn
-      img.style.objectFit = 'contain';
+      // Ảnh ngang / vuông: phủ full màn hình theo chiều ngang (cover)
+      img.style.objectFit = 'cover';
       img.style.objectPosition = 'center center';
-      img.style.width = 'auto';
-      img.style.height = 'auto';
-      img.style.maxWidth = '100%';
-      img.style.maxHeight = '100%';
+      img.style.width = '100%';
+      img.style.height = '100%';
+      img.style.maxWidth = 'none';
+      img.style.maxHeight = 'none';
+      img.style.transform = '';
       return;
     }
 
@@ -301,7 +295,9 @@ const Slideshow = {
     if (this.settings.effect === 'random') {
       return this.effects[Math.floor(Math.random() * this.effects.length)];
     }
-    return this.settings.effect || 'fade';
+    var e = this.settings.effect;
+    if (this.effects.indexOf(e) >= 0) return e;
+    return 'slide-h';
   },
 
   getTransitionMs() {
@@ -428,12 +424,9 @@ const Slideshow = {
       other.className = 'slide-layer';
 
       if (activeImg) {
-        if (effect !== 'kenburns') {
-          activeImg.style.transition = 'none';
-          // Giữ translateX(-50%) nếu là portrait
-          if (!activeImg.classList.contains('fit-portrait')) {
-            activeImg.style.transform = '';
-          }
+        activeImg.style.transition = 'none';
+        if (!activeImg.classList.contains('fit-portrait')) {
+          activeImg.style.transform = '';
         }
         this.applyFit(activeImg, fit, photo);
       }
@@ -455,60 +448,40 @@ const Slideshow = {
   },
 
   /**
-   * Nguyên tắc chuyển cảnh:
-   * - Slide/Push: 2 ảnh sát mép, cùng dịch chuyển, gần như không chồng
-   * - Fade/Zoom: ảnh cũ mờ nhanh để luôn nhìn rõ ảnh mới
-   * - Hết hiệu ứng → ảnh mới đúng giữa → bắt đầu đứng yên
+   * 5 hiệu ứng (sát mép / nhìn rõ):
+   * slide-h: cũ → phải, mới từ trái → giữa
+   * slide-v: cũ → trên, mới từ dưới → giữa
+   * diag-bl: mới từ dưới-trái, cũ ra trên-phải
+   * diag-br: mới từ dưới-phải, cũ ra trên-trái
+   * zoom-center: cũ mờ dần, mới từ tâm phóng to dần
    */
   setStartState(nextLayer, nextImg, currLayer, effect) {
-    // Reset
     nextLayer.style.opacity = '1';
     nextImg.style.opacity = '1';
 
     switch (effect) {
-      // === SLIDE / PUSH: ảnh mới đứng sát mép ngoài ===
-      case 'slide-left':   // ảnh mới vào từ phải, cả hai đi sang trái
-      case 'push-left':
-        nextLayer.style.transform = 'translateX(100%)';
-        break;
-      case 'slide-right':  // ảnh mới vào từ trái, cả hai đi sang phải (đúng ví dụ user)
-      case 'push-right':
+      case 'slide-h':
+        // mới đứng sát mép trái (ngoài màn hình)
         nextLayer.style.transform = 'translateX(-100%)';
         break;
-      case 'slide-up':
+      case 'slide-v':
         nextLayer.style.transform = 'translateY(100%)';
         break;
-      case 'slide-down':
-        nextLayer.style.transform = 'translateY(-100%)';
+      case 'diag-bl':
+        // góc dưới-trái
+        nextLayer.style.transform = 'translate(-100%, 100%)';
         break;
-
-      // === FADE: bắt đầu trong suốt ===
-      case 'fade':
-      case 'fade-black':
+      case 'diag-br':
+        // góc dưới-phải
+        nextLayer.style.transform = 'translate(100%, 100%)';
+        break;
+      case 'zoom-center':
         nextLayer.style.opacity = '0';
-        nextLayer.style.transform = 'translateX(0)';
+        nextLayer.style.transform = 'scale(0.6)';
         break;
-
-      // === ZOOM: scale khác nhau, opacity 0 ===
-      case 'zoom-in':
-        nextLayer.style.opacity = '0';
-        nextLayer.style.transform = 'scale(1.2)';
-        break;
-      case 'zoom-out':
-      case 'soft-zoom':
-        nextLayer.style.opacity = '0';
-        nextLayer.style.transform = 'scale(0.85)';
-        break;
-
-      case 'kenburns':
-        nextLayer.style.opacity = '0';
-        nextLayer.style.transform = 'translateX(0) scale(1)';
-        nextImg.style.transform = 'scale(1) translate(0,0)';
-        break;
-
       default:
         nextLayer.style.opacity = '0';
-        nextLayer.style.transform = 'translateX(0)';
+        nextLayer.style.transform = 'translateX(0) scale(1)';
     }
   },
 
@@ -520,88 +493,48 @@ const Slideshow = {
     nextLayer.classList.add('active');
 
     switch (effect) {
-      // ========== SLIDE / PUSH: sát mép, cùng dịch, không chồng ==========
-      // slide-right = ảnh mới từ trái vào, cả hai đi sang phải (ví dụ user)
-      case 'slide-right':
-      case 'push-right':
+      case 'slide-h':
+        // cả hai đi sang phải cùng khoảng cách, sát mép
         nextLayer.style.transform = 'translateX(0)';
         nextLayer.style.opacity = '1';
         currLayer.style.transform = 'translateX(100%)';
-        currLayer.style.opacity = '1'; // giữ rõ đến khi ra hết, không chồng
-        break;
-
-      case 'slide-left':
-      case 'push-left':
-        nextLayer.style.transform = 'translateX(0)';
-        nextLayer.style.opacity = '1';
-        currLayer.style.transform = 'translateX(-100%)';
         currLayer.style.opacity = '1';
         break;
 
-      case 'slide-up':
+      case 'slide-v':
+        // cả hai đi lên
         nextLayer.style.transform = 'translateY(0)';
         nextLayer.style.opacity = '1';
         currLayer.style.transform = 'translateY(-100%)';
         currLayer.style.opacity = '1';
         break;
 
-      case 'slide-down':
-        nextLayer.style.transform = 'translateY(0)';
+      case 'diag-bl':
+        nextLayer.style.transform = 'translate(0, 0)';
         nextLayer.style.opacity = '1';
-        currLayer.style.transform = 'translateY(100%)';
+        currLayer.style.transform = 'translate(100%, -100%)';
         currLayer.style.opacity = '1';
         break;
 
-      // ========== FADE: ảnh cũ mờ nhanh để nhìn rõ ảnh mới ==========
-      case 'fade':
+      case 'diag-br':
+        nextLayer.style.transform = 'translate(0, 0)';
         nextLayer.style.opacity = '1';
-        nextLayer.style.transform = 'translateX(0)';
-        // Ảnh cũ mờ nhanh hơn (dùng thời gian ngắn hơn một chút)
-        currLayer.style.transition = 'opacity ' + Math.round(duration * 0.6) + 'ms ease';
-        currLayer.style.opacity = '0';
+        currLayer.style.transform = 'translate(-100%, -100%)';
+        currLayer.style.opacity = '1';
         break;
 
-      case 'fade-black':
-        currLayer.style.transition = 'opacity ' + Math.round(duration * 0.45) + 'ms ease';
-        currLayer.style.opacity = '0';
-        setTimeout(function () {
-          nextLayer.style.transition = 'opacity ' + Math.round(duration * 0.45) + 'ms ease';
-          nextLayer.style.opacity = '1';
-        }, Math.round(duration * 0.45));
-        break;
-
-      // ========== ZOOM: ảnh cũ mờ nhanh + thu nhỏ nhẹ ==========
-      case 'zoom-in':
+      case 'zoom-center':
         nextLayer.style.transform = 'scale(1)';
         nextLayer.style.opacity = '1';
-        currLayer.style.transition = 'opacity ' + Math.round(duration * 0.5) + 'ms ease, transform ' + t;
+        // ảnh cũ mờ nhanh để luôn nhìn rõ ảnh mới
+        currLayer.style.transition = 'opacity ' + Math.round(duration * 0.55) + 'ms ease, transform ' + t;
         currLayer.style.opacity = '0';
-        currLayer.style.transform = 'scale(0.92)';
-        break;
-
-      case 'zoom-out':
-      case 'soft-zoom':
-        nextLayer.style.transform = 'scale(1)';
-        nextLayer.style.opacity = '1';
-        currLayer.style.transition = 'opacity ' + Math.round(duration * 0.5) + 'ms ease, transform ' + t;
-        currLayer.style.opacity = '0';
-        currLayer.style.transform = 'scale(1.06)';
-        break;
-
-      case 'kenburns':
-        nextLayer.style.opacity = '1';
-        currLayer.style.transition = 'opacity ' + Math.round(duration * 0.5) + 'ms ease';
-        currLayer.style.opacity = '0';
-        nextImg.style.transition = 'none';
-        nextImg.style.transform = 'scale(1) translate(0,0)';
-        void nextImg.offsetWidth;
-        var hold = this.getHoldMs();
-        nextImg.style.transition = 'transform ' + (hold + duration) + 'ms ease-out';
-        nextImg.style.transform = 'scale(1.08) translate(-1.5%, -1%)';
+        currLayer.style.transform = 'scale(1.05)';
         break;
 
       default:
         nextLayer.style.opacity = '1';
+        nextLayer.style.transform = 'scale(1)';
         currLayer.style.opacity = '0';
     }
   },
