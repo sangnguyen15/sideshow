@@ -337,7 +337,7 @@ input:focus, select:focus {
   gap: 8px;
 }
 
-/* Floating button */
+/* Floating button – ẩn mặc định, hover góc phải dưới mới hiện */
 .btn-floating {
   position: fixed;
   bottom: 24px;
@@ -351,15 +351,35 @@ input:focus, select:focus {
   font-size: 1.4rem;
   cursor: pointer;
   z-index: 90;
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
   backdrop-filter: blur(8px);
 }
 
 .btn-floating.show {
-  display: flex;
+  opacity: 0;
+  pointer-events: none;
 }
+
+.corner-hotspot {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  width: 100px;
+  height: 100px;
+  z-index: 89;
+}
+
+.corner-hotspot:hover ~ .btn-floating.show,
+.btn-floating.show:hover {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 
 /* Status bar */
 #status-bar {
@@ -375,9 +395,10 @@ input:focus, select:focus {
 
 /* ========== FULLSCREEN / IDLE STATE ========== */
 body.idle #control-panel,
-body.idle .btn-floating {
-  opacity: 0;
-  pointer-events: none;
+body.idle .btn-floating,
+body.idle .corner-hotspot {
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 body.idle #status-bar {

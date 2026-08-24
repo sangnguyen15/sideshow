@@ -159,10 +159,9 @@ const Slideshow = {
   },
 
   /**
-   * Smart fit:
-   * - User chọn cover/fill → theo setting
-   * - contain (mặc định) + ảnh ngang → contain đầy đủ
-   * - contain + ảnh dọc → phóng vừa phải (~1.30× contain, trần 90% cover), neo trên
+   * - Ảnh ngang / vuông: cover (full màn, không méo, cắt rìa nhẹ nếu lệch tỷ lệ)
+   * - Ảnh dọc: contain (đúng tỷ lệ gốc, không cắt, không phóng)
+   * - Setting cover/fill: theo lựa chọn user
    */
   applyFit(img, fit, photo) {
     img.classList.remove('fit-cover', 'fit-fill', 'fit-portrait');
@@ -173,10 +172,19 @@ const Slideshow = {
     img.style.bottom = '';
     img.style.maxWidth = '';
     img.style.maxHeight = '';
+    img.style.transform = '';
 
     fit = fit || 'contain';
 
-    // cover / fill: theo setting người dùng
+    if (fit === 'fill') {
+      img.style.objectFit = 'fill';
+      img.style.objectPosition = 'center center';
+      img.style.width = '100%';
+      img.style.height = '100%';
+      img.classList.add('fit-fill');
+      return;
+    }
+
     if (fit === 'cover') {
       img.style.objectFit = 'cover';
       img.style.objectPosition = 'center center';
@@ -185,65 +193,27 @@ const Slideshow = {
       img.classList.add('fit-cover');
       return;
     }
-    if (fit === 'fill') {
-      img.style.objectFit = 'fill';
-      img.style.width = '100%';
-      img.style.height = '100%';
-      img.classList.add('fit-fill');
-      return;
-    }
 
-    // contain + nhận diện ngang/dọc
     var iw = (photo && photo.width) || img.naturalWidth || 0;
     var ih = (photo && photo.height) || img.naturalHeight || 0;
     var isPortrait = (iw > 0 && ih > 0 && (iw / ih) < 1.05);
 
-    if (!isPortrait || iw <= 0 || ih <= 0) {
-      // Ảnh ngang / vuông: phủ full màn hình theo chiều ngang (cover)
-      img.style.objectFit = 'cover';
+    if (isPortrait) {
+      img.style.objectFit = 'contain';
       img.style.objectPosition = 'center center';
-      img.style.width = '100%';
-      img.style.height = '100%';
-      img.style.maxWidth = 'none';
-      img.style.maxHeight = 'none';
-      img.style.transform = '';
+      img.style.width = 'auto';
+      img.style.height = 'auto';
+      img.style.maxWidth = '100%';
+      img.style.maxHeight = '100%';
+      img.classList.add('fit-portrait');
       return;
     }
 
-    // === Ảnh dọc: phóng vừa phải, neo trên ===
-    var cw = window.innerWidth || document.documentElement.clientWidth || 1920;
-    var ch = window.innerHeight || document.documentElement.clientHeight || 1080;
-
-    var containScale = Math.min(cw / iw, ch / ih);
-    var coverScale = Math.max(cw / iw, ch / ih);
-
-    // Trung bình an toàn: 1.30× contain, không vượt 90% cover
-    var scale = Math.min(containScale * 1.30, coverScale * 0.90);
-
-    // Không upscale quá mạnh so với pixel gốc (tránh mờ trên TV 1x)
-    // Cho phép tối đa ~1.15× natural pixel để vẫn còn nét chấp nhận được
-    if (scale > 1.15) {
-      scale = 1.15;
-    }
-
-    // Vẫn phải lớn hơn contain một chút nếu có thể (nếu bị clamp 1.15)
-    if (scale < containScale) {
-      scale = containScale;
-    }
-
-    var dispW = Math.round(iw * scale);
-    var dispH = Math.round(ih * scale);
-
-    img.style.objectFit = 'fill';
-    img.style.width = dispW + 'px';
-    img.style.height = dispH + 'px';
-    img.style.maxWidth = 'none';
-    img.style.maxHeight = 'none';
-    img.style.position = 'absolute';
-    img.style.top = '0';
-    img.style.left = '50%';
-    img.style.transform = 'translateX(-50%)';
-    img.classList.add('fit-portrait');
+    img.style.objectFit = 'cover';
+    img.style.objectPosition = 'center center';
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.classList.add('fit-cover');
   },
 
   showStaticCurrent() {
@@ -394,13 +364,21 @@ const Slideshow = {
     nextLayer.style.opacity = '0';
     nextLayer.style.transform = '';
 
+    // Đưa layer cũ về gốc, layer mới chuẩn bị off-screen
+    currLayer.style.transition = 'none';
+    currLayer.style.transform = 'translate3d(0,0,0)';
+    currLayer.style.opacity = '1';
+    currLayer.classList.add('active');
+
     void nextLayer.offsetWidth;
 
     this.setStartState(nextLayer, nextImg, currLayer, effect);
     void nextLayer.offsetWidth;
 
-    requestAnimationFrame(() => {
-      this.runTransition(nextLayer, nextImg, currLayer, currImg, effect, duration, ease);
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        Slideshow.runTransition(nextLayer, nextImg, currLayer, currImg, effect, duration, ease);
+      });
     });
 
     this.activeLayer = this.activeLayer === 'a' ? 'b' : 'a';
@@ -462,18 +440,18 @@ const Slideshow = {
     switch (effect) {
       case 'slide-h':
         // mới đứng sát mép trái (ngoài màn hình)
-        nextLayer.style.transform = 'translateX(-100%)';
+        nextLayer.style.transform = 'translate3d(-100%,0,0)';
         break;
       case 'slide-v':
-        nextLayer.style.transform = 'translateY(100%)';
+        nextLayer.style.transform = 'translate3d(0,100%,0)';
         break;
       case 'diag-bl':
         // góc dưới-trái
-        nextLayer.style.transform = 'translate(-100%, 100%)';
+        nextLayer.style.transform = 'translate3d(-100%,100%,0)';
         break;
       case 'diag-br':
         // góc dưới-phải
-        nextLayer.style.transform = 'translate(100%, 100%)';
+        nextLayer.style.transform = 'translate3d(100%,100%,0)';
         break;
       case 'zoom-center':
         nextLayer.style.opacity = '0';
@@ -494,32 +472,30 @@ const Slideshow = {
 
     switch (effect) {
       case 'slide-h':
-        // cả hai đi sang phải cùng khoảng cách, sát mép
-        nextLayer.style.transform = 'translateX(0)';
+        nextLayer.style.transform = 'translate3d(0,0,0)';
         nextLayer.style.opacity = '1';
-        currLayer.style.transform = 'translateX(100%)';
+        currLayer.style.transform = 'translate3d(100%,0,0)';
         currLayer.style.opacity = '1';
         break;
 
       case 'slide-v':
-        // cả hai đi lên
-        nextLayer.style.transform = 'translateY(0)';
+        nextLayer.style.transform = 'translate3d(0,0,0)';
         nextLayer.style.opacity = '1';
-        currLayer.style.transform = 'translateY(-100%)';
+        currLayer.style.transform = 'translate3d(0,-100%,0)';
         currLayer.style.opacity = '1';
         break;
 
       case 'diag-bl':
-        nextLayer.style.transform = 'translate(0, 0)';
+        nextLayer.style.transform = 'translate3d(0,0,0)';
         nextLayer.style.opacity = '1';
-        currLayer.style.transform = 'translate(100%, -100%)';
+        currLayer.style.transform = 'translate3d(100%,-100%,0)';
         currLayer.style.opacity = '1';
         break;
 
       case 'diag-br':
-        nextLayer.style.transform = 'translate(0, 0)';
+        nextLayer.style.transform = 'translate3d(0,0,0)';
         nextLayer.style.opacity = '1';
-        currLayer.style.transform = 'translate(-100%, -100%)';
+        currLayer.style.transform = 'translate3d(-100%,-100%,0)';
         currLayer.style.opacity = '1';
         break;
 
