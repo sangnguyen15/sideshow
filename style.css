@@ -1,0 +1,413 @@
+/* ========== RESET & BASE ========== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: #eee;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ========== SLIDESHOW CONTAINER ========== */
+#slideshow-container {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.slide-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  will-change: opacity, transform;
+  background: #000;
+}
+
+.slide-layer.active {
+  opacity: 1;
+  z-index: 2;
+}
+
+.slide-layer.next {
+  z-index: 1;
+}
+
+/* Ảnh thật bên trong layer – mặc định contain (full ảnh, không cắt) */
+.slide-layer img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  object-position: center;
+  display: block;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* Khi dùng cover / fill vẫn cần full kích thước container */
+.slide-layer img.fit-cover,
+.slide-layer img.fit-fill {
+  width: 100%;
+  height: 100%;
+}
+
+/* Loading overlay */
+#loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+#loading-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(255,255,255,0.2);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Offline overlay – chữ đủ lớn để đọc từ xa */
+#offline-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 15;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+#offline-overlay.show {
+  opacity: 1;
+}
+
+.offline-box {
+  text-align: center;
+  padding: 28px 40px;
+  background: rgba(20, 20, 25, 0.88);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  max-width: 90%;
+}
+
+.offline-icon {
+  font-size: 3rem;
+  margin-bottom: 12px;
+  opacity: 0.85;
+}
+
+.offline-title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 10px;
+  letter-spacing: 0.02em;
+}
+
+.offline-sub {
+  font-size: 1.15rem;
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.4;
+}
+
+@media (max-width: 600px) {
+  .offline-title { font-size: 1.5rem; }
+  .offline-sub { font-size: 1rem; }
+  .offline-icon { font-size: 2.4rem; }
+}
+
+/* ========== CONTROL PANEL ========== */
+#control-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(420px, 100%);
+  height: 100%;
+  background: rgba(20, 20, 25, 0.96);
+  backdrop-filter: blur(12px);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(0);
+  transition: transform 0.35s ease, opacity 0.35s ease;
+  overflow: hidden;
+}
+
+#control-panel.hidden {
+  transform: translateX(100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.panel-header h1 {
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px 40px;
+}
+
+.section {
+  margin-bottom: 28px;
+}
+
+.section h2 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #a0d2ff;
+}
+
+.input-group {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+select {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.07);
+  color: #fff;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+input:focus, select:focus {
+  border-color: #4a9eff;
+}
+
+.btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.btn:hover, .btn:focus {
+  background: rgba(255,255,255,0.22);
+}
+
+.btn-primary {
+  background: #2b6cb0;
+  width: 100%;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background: #3182ce;
+}
+
+.btn-secondary {
+  background: rgba(255,80,80,0.25);
+}
+
+.btn-icon {
+  background: transparent;
+  border: none;
+  color: #ccc;
+  font-size: 1.3rem;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.source-list {
+  list-style: none;
+  margin-top: 8px;
+}
+
+.source-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  font-size: 0.88rem;
+  word-break: break-all;
+}
+
+.source-list li .remove {
+  background: transparent;
+  border: none;
+  color: #ff6b6b;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0 6px;
+}
+
+.hint {
+  font-size: 0.8rem;
+  color: #999;
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.hint a {
+  color: #6eb6ff;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  gap: 12px;
+}
+
+.setting-row label {
+  font-size: 0.9rem;
+  flex: 1;
+}
+
+.setting-row input[type="number"],
+.setting-row select {
+  width: 140px;
+  flex: none;
+}
+
+.setting-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Floating button – ẩn mặc định, hover góc phải dưới mới hiện */
+.btn-floating {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(30,30,40,0.85);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff;
+  font-size: 1.4rem;
+  cursor: pointer;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  backdrop-filter: blur(8px);
+}
+
+.btn-floating.show {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.corner-hotspot {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  width: 100px;
+  height: 100px;
+  z-index: 89;
+}
+
+.corner-hotspot:hover ~ .btn-floating.show,
+.btn-floating.show:hover {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+
+/* Status bar */
+#status-bar {
+  position: fixed;
+  bottom: 12px;
+  left: 12px;
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.5);
+  z-index: 5;
+  pointer-events: none;
+  max-width: 60%;
+}
+
+/* ========== FULLSCREEN / IDLE STATE ========== */
+body.idle #control-panel,
+body.idle .btn-floating,
+body.idle .corner-hotspot {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+body.idle #status-bar {
+  opacity: 0;
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 480px) {
+  #control-panel {
+    width: 100%;
+  }
+}

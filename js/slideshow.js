@@ -272,14 +272,14 @@ const Slideshow = {
 
   getTransitionMs() {
     const sec = parseFloat(this.settings.transition);
-    if (isNaN(sec)) return 8000;
-    return Math.round(Math.max(0.5, Math.min(60, sec)) * 1000);
+    if (isNaN(sec)) return 30000;
+    return Math.round(Math.max(0.5, Math.min(180, sec)) * 1000);
   },
 
   getHoldMs() {
     const sec = parseFloat(this.settings.duration);
-    if (isNaN(sec)) return 5000;
-    return Math.round(Math.max(1, Math.min(60, sec)) * 1000);
+    if (isNaN(sec)) return 120000;
+    return Math.round(Math.max(1, Math.min(600, sec)) * 1000);
   },
 
   scheduleAfterHold() {
@@ -301,9 +301,8 @@ const Slideshow = {
         this.currentSourceIndex = 0;
       }
 
-      if (this.settings.shuffle) {
-        this.shuffleCurrentFolder();
-      }
+      // Xáo lại folder vừa vào (cả merged 1 list lẫn từng folder)
+      this.shuffleCurrentFolder();
     }
 
     const nextLayer = this.activeLayer === 'a' ? this.layerB : this.layerA;

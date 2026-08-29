@@ -262,8 +262,8 @@
 
   function saveSettingsFromUI() {
     var settings = {
-      duration: parseInt(settingDuration.value, 10) || 5,
-      transition: parseFloat(settingTransition.value) || 8,
+      duration: parseInt(settingDuration.value, 10) || 120,
+      transition: parseFloat(settingTransition.value) || 30,
       effect: settingEffect.value,
       fit: settingFit.value || 'contain',
       idle: parseInt(settingIdle.value, 10) || 8,
@@ -305,18 +305,47 @@
       Slideshow.showLoading(false);
     }
 
+    function shuffleArr(arr) {
+      for (var i = arr.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = arr[i];
+        arr[i] = arr[j];
+        arr[j] = t;
+      }
+      return arr;
+    }
+
+    var playSources;
     if (Slideshow.settings.shuffle) {
+      // Bật: gộp tất cả ảnh mọi folder → xáo một lần
+      var allPhotos = [];
       sources.forEach(function (s) {
-        for (var i = s.photos.length - 1; i > 0; i--) {
-          var j = Math.floor(Math.random() * (i + 1));
-          var t = s.photos[i];
-          s.photos[i] = s.photos[j];
-          s.photos[j] = t;
-        }
+        (s.photos || []).forEach(function (p) {
+          allPhotos.push(p);
+        });
+      });
+      shuffleArr(allPhotos);
+      playSources = [{
+        id: 'merged-all',
+        name: 'Tất cả (' + allPhotos.length + ' ảnh)',
+        link: '',
+        photos: allPhotos
+      }];
+    } else {
+      // Tắt: xáo trong từng folder, chiếu hết folder này mới sang folder khác
+      playSources = sources.map(function (s) {
+        var photos = (s.photos || []).slice();
+        shuffleArr(photos);
+        return {
+          id: s.id,
+          name: s.name,
+          link: s.link,
+          photos: photos
+        };
       });
     }
 
-    Slideshow.setSources(sources);
+    Slideshow.setSources(playSources);
     hidePanel();
     await Slideshow.start(resume);
   }
