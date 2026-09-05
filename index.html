@@ -33,7 +33,12 @@
       <button id="btn-close-panel" class="btn-icon" title="Đóng">✕</button>
     </div>
 
-    <div class="panel-body">
+    <div class="panel-scroll-btns" aria-hidden="false">
+      <button type="button" id="btn-panel-up" class="btn-scroll" title="Cuộn lên">▲</button>
+      <button type="button" id="btn-panel-down" class="btn-scroll" title="Cuộn xuống">▼</button>
+    </div>
+
+    <div class="panel-body" id="panel-body">
       <!-- Sources (chỉ xem, lấy từ Google Sheet qua GAS) -->
       <section class="section">
         <h2>Thư mục ảnh đang dùng</h2>

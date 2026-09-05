@@ -101,22 +101,69 @@
       document.addEventListener(evt, onUserActivity, { passive: true });
     });
 
-    // Lăn chuột: cuộn panel cài đặt (body overflow:hidden nên wheel mặc định không ăn)
+    var panelBody = document.getElementById('panel-body') || panel.querySelector('.panel-body');
+
+    function scrollPanelBy(dy) {
+      if (!panelBody) panelBody = panel.querySelector('.panel-body');
+      if (!panelBody) return;
+      panelBody.scrollTop += dy;
+    }
+
+    // 1) Lăn chuột / trackpad
     document.addEventListener('wheel', function (e) {
       if (panel.classList.contains('hidden')) return;
-      var body = panel.querySelector('.panel-body');
-      if (!body) return;
-      // Chỉ cuộn khi con trỏ trong panel hoặc luôn ưu tiên panel khi đang mở
-      var inPanel = panel.contains(e.target);
-      if (!inPanel) {
-        // vẫn cho phép cuộn menu khi đang mở (chuột có thể lệch khỏi panel)
-        // nếu muốn chỉ khi hover panel: bỏ comment return dưới
-        // return;
-      }
-      body.scrollTop += e.deltaY;
-      e.preventDefault();
+      if (!panelBody) return;
+      var dy = e.deltaY;
+      // deltaMode: 1 = dòng, 2 = trang
+      if (e.deltaMode === 1) dy *= 24;
+      if (e.deltaMode === 2) dy *= panelBody.clientHeight;
+      scrollPanelBy(dy);
+      if (e.cancelable) e.preventDefault();
       onUserActivity();
-    }, { passive: false });
+    }, { passive: false, capture: true });
+
+    // 2) Kéo chuột (drag) để cuộn – dùng khi wheel không ăn trên WebView
+    var dragState = null;
+    if (panelBody) {
+      panelBody.addEventListener('mousedown', function (e) {
+        if (e.button !== 0) return;
+        // không bắt đầu drag khi bấm input/button/select
+        var t = e.target && e.target.tagName;
+        if (t === 'INPUT' || t === 'SELECT' || t === 'BUTTON' || t === 'A' || t === 'LABEL') return;
+        dragState = { y: e.clientY, scroll: panelBody.scrollTop };
+        panelBody.classList.add('is-dragging');
+        e.preventDefault();
+      });
+      document.addEventListener('mousemove', function (e) {
+        if (!dragState) return;
+        var dy = dragState.y - e.clientY;
+        panelBody.scrollTop = dragState.scroll + dy;
+        onUserActivity();
+      });
+      document.addEventListener('mouseup', function () {
+        if (!dragState) return;
+        dragState = null;
+        panelBody.classList.remove('is-dragging');
+      });
+    }
+
+    // 3) Nút ▲ ▼
+    var btnUp = document.getElementById('btn-panel-up');
+    var btnDown = document.getElementById('btn-panel-down');
+    if (btnUp) {
+      btnUp.addEventListener('click', function (e) {
+        e.preventDefault();
+        scrollPanelBy(-120);
+        onUserActivity();
+      });
+    }
+    if (btnDown) {
+      btnDown.addEventListener('click', function (e) {
+        e.preventDefault();
+        scrollPanelBy(120);
+        onUserActivity();
+      });
+    }
 
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') {
