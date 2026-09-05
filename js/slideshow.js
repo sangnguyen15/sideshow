@@ -70,6 +70,7 @@ const Slideshow = {
 
     this.stop();
     this.isPlaying = true;
+    this._busy = false;
 
     if (resume && this.settings.resume) {
       const progress = Storage.getProgress();
@@ -137,25 +138,81 @@ const Slideshow = {
     this.showLoading(false);
   },
 
-  getPhotoAtOffset(offset) {
-    let sIdx = this.currentSourceIndex;
-    let pIdx = this.currentPhotoIndex + offset;
-
-    while (sIdx < this.sources.length) {
-      const photos = this.sources[sIdx].photos;
-      if (pIdx < photos.length) {
-        return { ...photos[pIdx], sourceIndex: sIdx, photoIndex: pIdx };
-      }
-      pIdx -= photos.length;
-      sIdx++;
+  /** Tổng số ảnh đang phát */
+  getTotalPhotoCount() {
+    var total = 0;
+    for (var i = 0; i < this.sources.length; i++) {
+      var p = this.sources[i] && this.sources[i].photos;
+      if (p) total += p.length;
     }
+    return total;
+  },
 
-    if (this.sources.length > 0) {
-      const first = this.sources[0];
-      const idx = ((pIdx % first.photos.length) + first.photos.length) % first.photos.length;
-      return { ...first.photos[idx], sourceIndex: 0, photoIndex: idx };
+  /**
+   * Lấy ảnh theo offset, tự quay vòng toàn bộ list (mọi folder).
+   */
+  getPhotoAtOffset(offset) {
+    var total = this.getTotalPhotoCount();
+    if (total <= 0) return null;
+
+    var abs = 0;
+    for (var i = 0; i < this.currentSourceIndex; i++) {
+      abs += (this.sources[i].photos || []).length;
+    }
+    abs += this.currentPhotoIndex + (offset || 0);
+    abs = ((abs % total) + total) % total;
+
+    for (var sIdx = 0; sIdx < this.sources.length; sIdx++) {
+      var photos = this.sources[sIdx].photos || [];
+      if (abs < photos.length) {
+        var photo = photos[abs];
+        return Object.assign({}, photo, { sourceIndex: sIdx, photoIndex: abs });
+      }
+      abs -= photos.length;
     }
     return null;
+  },
+
+  /**
+   * Tiến 1 ảnh; hết list → về đầu + xáo lại.
+   */
+  advanceIndex() {
+    if (!this.sources.length) return;
+
+    this.currentPhotoIndex++;
+    var guard = 0;
+    while (guard++ < 10000) {
+      var src = this.sources[this.currentSourceIndex];
+      var len = (src && src.photos) ? src.photos.length : 0;
+
+      if (len > 0 && this.currentPhotoIndex < len) {
+        return; // vị trí hợp lệ
+      }
+
+      // Hết folder hiện tại (hoặc folder rỗng) → folder sau
+      this.currentSourceIndex++;
+      this.currentPhotoIndex = 0;
+
+      if (this.currentSourceIndex >= this.sources.length) {
+        // Hết tất cả → vòng mới
+        this.currentSourceIndex = 0;
+        this.reshuffleAll();
+      }
+    }
+  },
+
+  /** Xáo lại toàn bộ nguồn đang phát (1 list gộp hoặc từng folder) */
+  reshuffleAll() {
+    for (var i = 0; i < this.sources.length; i++) {
+      var photos = this.sources[i] && this.sources[i].photos;
+      if (!photos || photos.length < 2) continue;
+      for (var j = photos.length - 1; j > 0; j--) {
+        var k = Math.floor(Math.random() * (j + 1));
+        var tmp = photos[j];
+        photos[j] = photos[k];
+        photos[k] = tmp;
+      }
+    }
   },
 
   /**
@@ -284,144 +341,174 @@ const Slideshow = {
 
   scheduleAfterHold() {
     if (this.timer) clearTimeout(this.timer);
-    this.timer = setTimeout(() => this.next(), this.getHoldMs());
+    if (!this.isPlaying) return;
+    var self = this;
+    this.timer = setTimeout(function () {
+      self.next();
+    }, this.getHoldMs());
   },
 
+  /**
+   * Chuyển ảnh tiếp theo. Luôn quay vòng; lỗi 1 ảnh không làm dừng cả hệ thống.
+   */
   async next() {
     if (!this.isPlaying) return;
-
-    this.currentPhotoIndex++;
-    const currentSource = this.sources[this.currentSourceIndex];
-
-    if (this.currentPhotoIndex >= currentSource.photos.length) {
-      this.currentSourceIndex++;
-      this.currentPhotoIndex = 0;
-
-      if (this.currentSourceIndex >= this.sources.length) {
-        this.currentSourceIndex = 0;
-      }
-
-      // Xáo lại folder vừa vào (cả merged 1 list lẫn từng folder)
-      this.shuffleCurrentFolder();
-    }
-
-    const nextLayer = this.activeLayer === 'a' ? this.layerB : this.layerA;
-    const currLayer = this.activeLayer === 'a' ? this.layerA : this.layerB;
-    const nextImg = nextLayer.querySelector('img');
-    const currImg = currLayer.querySelector('img');
-
-    const photo = this.getPhotoAtOffset(0);
-    if (!photo) {
-      this.scheduleAfterHold();
-      return;
-    }
-
-    // Kiểm tra mạng trước khi tải ảnh mới
-    if (!navigator.onLine) {
-      this.handleOffline();
-      return;
-    }
+    if (this._busy) return;
+    this._busy = true;
 
     try {
-      var meta = await Drive.preloadImage(photo.url);
-      if (meta && meta.width) {
-        photo.width = meta.width;
-        photo.height = meta.height;
+      if (!this.sources || !this.sources.length || this.getTotalPhotoCount() === 0) {
+        this._busy = false;
+        this.scheduleAfterHold();
+        return;
       }
-    } catch (e) {
-      console.warn('Skip image', e);
-      if (!navigator.onLine) {
+
+      this.advanceIndex();
+
+      var photo = this.getPhotoAtOffset(0);
+      if (!photo) {
+        // Thử về đầu
+        this.currentSourceIndex = 0;
+        this.currentPhotoIndex = 0;
+        this.reshuffleAll();
+        photo = this.getPhotoAtOffset(0);
+      }
+      if (!photo) {
+        this._busy = false;
+        this.scheduleAfterHold();
+        return;
+      }
+
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        this._busy = false;
         this.handleOffline();
         return;
       }
-      this.currentPhotoIndex++;
-      this.scheduleAfterHold();
-      return;
-    }
 
-    const duration = this.getTransitionMs();
-    const fit = this.settings.fit || 'contain';
-    const effect = this.pickEffect();
-    const ease = 'cubic-bezier(0.4, 0.0, 0.2, 1)';
-
-    nextImg.src = photo.url;
-    if (photo.width && photo.height) {
-      this.applyFit(nextImg, fit, photo);
-    } else {
-      var self2 = this;
-      nextImg.onload = function () {
-        photo.width = nextImg.naturalWidth;
-        photo.height = nextImg.naturalHeight;
-        self2.applyFit(nextImg, fit, photo);
-      };
-      this.applyFit(nextImg, fit, photo);
-    }
-    nextImg.style.transition = 'none';
-    nextImg.style.transform = '';
-    nextLayer.className = 'slide-layer next';
-    nextLayer.style.transition = 'none';
-    nextLayer.style.opacity = '0';
-    nextLayer.style.transform = '';
-
-    // Đưa layer cũ về gốc, layer mới chuẩn bị off-screen
-    currLayer.style.transition = 'none';
-    currLayer.style.transform = 'translate3d(0,0,0)';
-    currLayer.style.opacity = '1';
-    currLayer.classList.add('active');
-
-    void nextLayer.offsetWidth;
-
-    this.setStartState(nextLayer, nextImg, currLayer, effect);
-    void nextLayer.offsetWidth;
-
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        Slideshow.runTransition(nextLayer, nextImg, currLayer, currImg, effect, duration, ease);
-      });
-    });
-
-    this.activeLayer = this.activeLayer === 'a' ? 'b' : 'a';
-
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = setTimeout(() => {
-      if (!this.isPlaying) return;
-
-      const active = this.activeLayer === 'a' ? this.layerA : this.layerB;
-      const other = this.activeLayer === 'a' ? this.layerB : this.layerA;
-      const activeImg = active.querySelector('img');
-
-      active.style.transition = 'none';
-      active.style.transform = '';
-      active.style.opacity = '1';
-      active.className = 'slide-layer active';
-
-      other.style.transition = 'none';
-      other.style.opacity = '0';
-      other.style.transform = '';
-      other.className = 'slide-layer';
-
-      if (activeImg) {
-        activeImg.style.transition = 'none';
-        if (!activeImg.classList.contains('fit-portrait')) {
-          activeImg.style.transform = '';
+      try {
+        var meta = await Drive.preloadImage(photo.url);
+        if (meta && meta.width) {
+          photo.width = meta.width;
+          photo.height = meta.height;
         }
-        this.applyFit(activeImg, fit, photo);
+      } catch (e) {
+        console.warn('Skip image', e);
+        this._busy = false;
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          this.handleOffline();
+          return;
+        }
+        // Bỏ ảnh lỗi, thử ảnh kế sau 0.5s (không kẹt)
+        var selfSkip = this;
+        this.timer = setTimeout(function () {
+          selfSkip.next();
+        }, 500);
+        return;
       }
 
-      Storage.saveProgress({
-        sourceIndex: photo.sourceIndex,
-        photoIndex: photo.photoIndex,
-        timestamp: Date.now()
+      if (!this.isPlaying) {
+        this._busy = false;
+        return;
+      }
+
+      var nextLayer = this.activeLayer === 'a' ? this.layerB : this.layerA;
+      var currLayer = this.activeLayer === 'a' ? this.layerA : this.layerB;
+      var nextImg = nextLayer.querySelector('img');
+      var currImg = currLayer.querySelector('img');
+
+      var duration = this.getTransitionMs();
+      var fit = this.settings.fit || 'contain';
+      var effect = this.pickEffect();
+      var ease = 'cubic-bezier(0.4, 0.0, 0.2, 1)';
+
+      nextImg.src = photo.url;
+      if (photo.width && photo.height) {
+        this.applyFit(nextImg, fit, photo);
+      } else {
+        var self2 = this;
+        nextImg.onload = function () {
+          photo.width = nextImg.naturalWidth;
+          photo.height = nextImg.naturalHeight;
+          self2.applyFit(nextImg, fit, photo);
+        };
+        this.applyFit(nextImg, fit, photo);
+      }
+      nextImg.style.transition = 'none';
+      nextImg.style.transform = '';
+      nextLayer.className = 'slide-layer next';
+      nextLayer.style.transition = 'none';
+      nextLayer.style.opacity = '0';
+      nextLayer.style.transform = '';
+
+      currLayer.style.transition = 'none';
+      currLayer.style.transform = 'translate3d(0,0,0)';
+      currLayer.style.opacity = '1';
+      currLayer.classList.add('active');
+
+      void nextLayer.offsetWidth;
+      this.setStartState(nextLayer, nextImg, currLayer, effect);
+      void nextLayer.offsetWidth;
+
+      var self = this;
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          self.runTransition(nextLayer, nextImg, currLayer, currImg, effect, duration, ease);
+        });
       });
-      Storage.addRecent(photo.id);
+
+      this.activeLayer = this.activeLayer === 'a' ? 'b' : 'a';
+
+      if (this.timer) clearTimeout(this.timer);
+      this.timer = setTimeout(function () {
+        self._busy = false;
+        if (!self.isPlaying) return;
+
+        var active = self.activeLayer === 'a' ? self.layerA : self.layerB;
+        var other = self.activeLayer === 'a' ? self.layerB : self.layerA;
+        var activeImg = active.querySelector('img');
+
+        active.style.transition = 'none';
+        active.style.transform = '';
+        active.style.opacity = '1';
+        active.className = 'slide-layer active';
+
+        other.style.transition = 'none';
+        other.style.opacity = '0';
+        other.style.transform = '';
+        other.className = 'slide-layer';
+
+        if (activeImg) {
+          activeImg.style.transition = 'none';
+          if (!activeImg.classList.contains('fit-portrait')) {
+            activeImg.style.transform = '';
+          }
+          self.applyFit(activeImg, fit, photo);
+        }
+
+        Storage.saveProgress({
+          sourceIndex: photo.sourceIndex,
+          photoIndex: photo.photoIndex,
+          timestamp: Date.now()
+        });
+        Storage.addRecent(photo.id);
+
+        self.updateStatus(photo);
+        self.preloadAhead();
+        self.scheduleAfterHold();
+      }, duration + 50);
 
       this.updateStatus(photo);
       this.preloadAhead();
-      this.scheduleAfterHold();
-    }, duration + 50);
-
-    this.updateStatus(photo);
-    this.preloadAhead();
+    } catch (err) {
+      console.error('next() error', err);
+      this._busy = false;
+      // Không bao giờ dừng hẳn: thử lại sau 2s
+      var selfErr = this;
+      if (this.timer) clearTimeout(this.timer);
+      this.timer = setTimeout(function () {
+        selfErr.next();
+      }, 2000);
+    }
   },
 
   /**
@@ -584,12 +671,15 @@ const Slideshow = {
   },
 
   updateStatus(photo) {
-    if (!this.onStatus) return;
-    const src = this.sources[photo.sourceIndex];
+    if (!this.onStatus || !photo) return;
+    var src = this.sources[photo.sourceIndex];
+    var totalInFolder = (src && src.photos) ? src.photos.length : '?';
+    var totalAll = this.getTotalPhotoCount();
     this.onStatus(
       'Folder ' + (photo.sourceIndex + 1) + '/' + this.sources.length +
-      ' · Ảnh ' + (photo.photoIndex + 1) + '/' + src.photos.length +
-      ' · ' + photo.name
+      ' · Ảnh ' + (photo.photoIndex + 1) + '/' + totalInFolder +
+      ' · Tổng ' + totalAll +
+      ' · ' + (photo.name || '')
     );
   }
 };

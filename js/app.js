@@ -105,6 +105,26 @@
       if (e.key === 'Escape') {
         if (panel.classList.contains('hidden')) showPanel();
         else hidePanel();
+        return;
+      }
+      // Cuộn panel bằng phím khi menu đang mở (TV / màn nhỏ)
+      if (!panel.classList.contains('hidden')) {
+        var body = panel.querySelector('.panel-body');
+        if (!body) return;
+        var step = 80;
+        if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+          e.preventDefault();
+          body.scrollTop += (e.key === 'PageDown' ? step * 4 : step);
+        } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+          e.preventDefault();
+          body.scrollTop -= (e.key === 'PageUp' ? step * 4 : step);
+        } else if (e.key === 'Home') {
+          e.preventDefault();
+          body.scrollTop = 0;
+        } else if (e.key === 'End') {
+          e.preventDefault();
+          body.scrollTop = body.scrollHeight;
+        }
       }
     });
   }
@@ -424,7 +444,7 @@
   var stillOnTimer = null;
 
   /**
-   * Mỗi phút kiểm tra: nếu >= 21:31 và vẫn đang chiếu → gửi still_on 1 lần/ngày
+   * Mỗi phút kiểm tra: nếu >= 21:30 và vẫn đang chiếu → gửi still_on 1 lần/ngày
    */
   function startStillOnWatcher() {
     if (stillOnTimer) return;
@@ -435,7 +455,7 @@
       var h = now.getHours();
       var m = now.getMinutes();
       // 21:30 trở đi
-      if (h < 21 || (h === 21 && m < 31)) return;
+      if (h < 21 || (h === 21 && m < 30)) return;
 
       var dayKey = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate();
       try {
