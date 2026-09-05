@@ -13,6 +13,7 @@
   const btnResume = document.getElementById('btn-resume');
   const btnApplyNow = document.getElementById('btn-apply-now');
   const btnResetProgress = document.getElementById('btn-reset-progress');
+  const btnHardReload = document.getElementById('btn-hard-reload');
   const statusBar = document.getElementById('status-bar');
 
   const settingDuration = document.getElementById('setting-duration');
@@ -42,6 +43,9 @@
     settingResume.checked = settings.resume;
 
     bindEvents();
+    // Lần đầu vào trang: ẩn panel, ẩn bánh răng
+    hidePanel();
+    hideGear();
     resetIdleTimer();
     Slideshow.init(settings, updateStatus, showError);
 
@@ -61,9 +65,16 @@
     btnOpenPanel.addEventListener('click', showPanel);
 
     btnRefreshSources.addEventListener('click', function () {
-      // Làm mới: dừng + load lại từ đầu
+      // Chỉ cập nhật Sheet/Drive, không reload code
       loadConfigAndStart(false);
     });
+
+    if (btnHardReload) {
+      btnHardReload.addEventListener('click', function () {
+        if (!confirm('Tải lại bản app mới nhất từ server?\nTrang sẽ reload (code mới + Sheet/Drive mới).')) return;
+        hardReloadApp();
+      });
+    }
 
     btnStart.addEventListener('click', function () { startSlideshow(false); });
     btnResume.addEventListener('click', function () { startSlideshow(true); });
@@ -85,16 +96,50 @@
       el.addEventListener('change', saveSettingsFromUI);
     });
 
-    ['mousemove', 'mousedown', 'keydown', 'touchstart', 'pointerdown'].forEach(function (evt) {
-      document.addEventListener(evt, resetIdleTimer, { passive: true });
+    // Di chuyển chuột / chạm → hiện bánh răng + reset idle
+    ['mousemove', 'mousedown', 'pointerdown', 'touchstart', 'keydown'].forEach(function (evt) {
+      document.addEventListener(evt, onUserActivity, { passive: true });
     });
 
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') {
-        if (isIdle) showPanel();
+        if (panel.classList.contains('hidden')) showPanel();
         else hidePanel();
       }
     });
+  }
+
+  function hardReloadApp() {
+    // Ép tải bản mới: bỏ cache query cũ, gắn timestamp
+    var base = location.href.split('#')[0];
+    var clean = base.split('?')[0];
+    // Xóa Cache API nếu có (PWA/kiosk đôi khi giữ)
+    var go = function () {
+      location.replace(clean + '?v=' + Date.now());
+    };
+    if (window.caches && caches.keys) {
+      caches.keys().then(function (keys) {
+        return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+      }).catch(function () {}).then(go);
+    } else {
+      go();
+    }
+  }
+
+  function showGear() {
+    btnOpenPanel.classList.add('gear-visible');
+  }
+
+  function hideGear() {
+    btnOpenPanel.classList.remove('gear-visible');
+  }
+
+  function onUserActivity() {
+    // Hiện bánh răng khi có tương tác (chuột / phím / chạm)
+    if (panel.classList.contains('hidden')) {
+      showGear();
+    }
+    resetIdleTimer();
   }
 
   /**
@@ -348,17 +393,69 @@
     Slideshow.setSources(playSources);
     hidePanel();
     await Slideshow.start(resume);
+    // Báo Telegram: box đã bật / slideshow chạy
+    notifyTelegram('on');
+    startStillOnWatcher();
+  }
+
+  /**
+   * Gửi notify qua GAS → Telegram
+   * event: 'on' | 'still_on'
+   */
+  function notifyTelegram(event) {
+    try {
+      var base = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.GAS_URL) ? APP_CONFIG.GAS_URL : '';
+      if (!base || base.indexOf('DÁN_URL_GAS') !== -1) return;
+
+      var url = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'action=notify&event=' + encodeURIComponent(event);
+
+      if (typeof fetch === 'function') {
+        fetch(url, { method: 'GET', mode: 'cors', redirect: 'follow' }).catch(function () {});
+      } else {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.send();
+      }
+    } catch (err) {
+      console.warn('notifyTelegram', err);
+    }
+  }
+
+  var stillOnTimer = null;
+
+  /**
+   * Mỗi phút kiểm tra: nếu >= 21:30 và vẫn đang chiếu → gửi still_on 1 lần/ngày
+   */
+  function startStillOnWatcher() {
+    if (stillOnTimer) return;
+    stillOnTimer = setInterval(function () {
+      if (!Slideshow.isPlaying) return;
+
+      var now = new Date();
+      var h = now.getHours();
+      var m = now.getMinutes();
+      // 21:30 trở đi
+      if (h < 21 || (h === 21 && m < 30)) return;
+
+      var dayKey = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate();
+      try {
+        if (localStorage.getItem('telegram_still_on_date') === dayKey) return;
+        localStorage.setItem('telegram_still_on_date', dayKey);
+      } catch (e) {}
+
+      notifyTelegram('still_on');
+    }, 60 * 1000);
   }
 
   function hidePanel() {
     panel.classList.add('hidden');
-    btnOpenPanel.classList.add('show');
+    // Ẩn panel nhưng vẫn có thể hiện gear nếu vừa có hoạt động
     resetIdleTimer();
   }
 
   function showPanel() {
     panel.classList.remove('hidden');
-    btnOpenPanel.classList.remove('show');
+    hideGear(); // panel đang mở → không cần icon
     document.body.classList.remove('idle');
     isIdle = false;
     resetIdleTimer();
@@ -371,12 +468,11 @@
 
     var idleSec = parseInt(settingIdle.value, 10) || 8;
     idleTimer = setTimeout(function () {
-      if (Slideshow.isPlaying) {
-        document.body.classList.add('idle');
-        isIdle = true;
-        panel.classList.add('hidden');
-        btnOpenPanel.classList.remove('show');
-      }
+      isIdle = true;
+      document.body.classList.add('idle');
+      // Ẩn panel + bánh răng khi không tương tác
+      panel.classList.add('hidden');
+      hideGear();
     }, idleSec * 1000);
   }
 

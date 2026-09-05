@@ -27,7 +27,7 @@
   </div>
 
   <!-- ========== CONTROL PANEL ========== -->
-  <div id="control-panel" class="panel">
+  <div id="control-panel" class="panel hidden">
     <div class="panel-header">
       <h1>Family Photo Slideshow</h1>
       <button id="btn-close-panel" class="btn-icon" title="Đóng">✕</button>
@@ -108,13 +108,14 @@
         <button id="btn-resume" class="btn">Tiếp tục từ vị trí cũ</button>
         <button id="btn-apply-now" class="btn">Áp dụng ngay (đổi setting đang chạy)</button>
         <button id="btn-reset-progress" class="btn btn-secondary">Reset vị trí chiếu</button>
+        <button id="btn-hard-reload" class="btn btn-secondary">Tải lại bản mới nhất</button>
+        <p class="hint">Dùng sau khi cập nhật code trên GitHub. Trang sẽ reload và lấy Sheet/Drive mới.</p>
       </section>
     </div>
   </div>
 
   <!-- Floating open button when panel is hidden -->
-  <div class="corner-hotspot" id="corner-hotspot" aria-hidden="true"></div>
-  <button id="btn-open-panel" class="btn-floating" title="Mở cài đặt">⚙️</button>
+  <button id="btn-open-panel" class="btn-floating" title="Mở cài đặt" aria-label="Cài đặt">⚙️</button>
 
   <!-- Status bar (optional info) -->
   <div id="status-bar"></div>
