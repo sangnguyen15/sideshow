@@ -101,6 +101,23 @@
       document.addEventListener(evt, onUserActivity, { passive: true });
     });
 
+    // Lăn chuột: cuộn panel cài đặt (body overflow:hidden nên wheel mặc định không ăn)
+    document.addEventListener('wheel', function (e) {
+      if (panel.classList.contains('hidden')) return;
+      var body = panel.querySelector('.panel-body');
+      if (!body) return;
+      // Chỉ cuộn khi con trỏ trong panel hoặc luôn ưu tiên panel khi đang mở
+      var inPanel = panel.contains(e.target);
+      if (!inPanel) {
+        // vẫn cho phép cuộn menu khi đang mở (chuột có thể lệch khỏi panel)
+        // nếu muốn chỉ khi hover panel: bỏ comment return dưới
+        // return;
+      }
+      body.scrollTop += e.deltaY;
+      e.preventDefault();
+      onUserActivity();
+    }, { passive: false });
+
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') {
         if (panel.classList.contains('hidden')) showPanel();
