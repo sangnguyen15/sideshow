@@ -424,7 +424,7 @@
   var stillOnTimer = null;
 
   /**
-   * Mỗi phút kiểm tra: nếu >= 21:30 và vẫn đang chiếu → gửi still_on 1 lần/ngày
+   * Mỗi phút kiểm tra: nếu >= 21:31 và vẫn đang chiếu → gửi still_on 1 lần/ngày
    */
   function startStillOnWatcher() {
     if (stillOnTimer) return;
@@ -435,7 +435,7 @@
       var h = now.getHours();
       var m = now.getMinutes();
       // 21:30 trở đi
-      if (h < 21 || (h === 21 && m < 30)) return;
+      if (h < 21 || (h === 21 && m < 31)) return;
 
       var dayKey = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate();
       try {
