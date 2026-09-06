@@ -56,6 +56,9 @@
       Slideshow.handleOnline();
     });
 
+    // Telegram theo khung giờ (7:05 BẬT, 22:01 vẫn bật)
+    startTelegramWatchers();
+
     // Tự load cấu hình từ GAS rồi tự chiếu
     loadConfigAndStart(true);
   }
@@ -477,9 +480,8 @@
     Slideshow.setSources(playSources);
     hidePanel();
     await Slideshow.start(resume);
-    // Báo Telegram: box đã bật / slideshow chạy
-    notifyTelegram('on');
-    startStillOnWatcher();
+    // Telegram "BẬT" gửi theo khung giờ ~7:05 (xem startTelegramWatchers)
+    startTelegramWatchers();
   }
 
   /**
@@ -505,30 +507,60 @@
     }
   }
 
-  var stillOnTimer = null;
+  var telegramWatchTimer = null;
+
+  function todayKey(now) {
+    now = now || new Date();
+    return now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate();
+  }
 
   /**
-   * Mỗi phút kiểm tra: nếu >= 22:01 và vẫn đang chiếu → gửi still_on 1 lần/ngày
+   * Khung giờ Telegram (theo đồng hồ box):
+   * - Từ 07:05: gửi "BẬT" 1 lần/ngày (trang đang mở là đủ)
+   * - Từ 22:01: gửi "VẪN BẬT" 1 lần/ngày nếu vẫn đang chiếu
    */
-  function startStillOnWatcher() {
-    if (stillOnTimer) return;
-    stillOnTimer = setInterval(function () {
-      if (!Slideshow.isPlaying) return;
+  function startTelegramWatchers() {
+    if (telegramWatchTimer) return;
 
+    function tick() {
       var now = new Date();
       var h = now.getHours();
       var m = now.getMinutes();
-      // 22:01 trở đi
-      if (h < 22 || (h === 22 && m < 1)) return;
+      var day = todayKey(now);
 
-      var dayKey = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate();
-      try {
-        if (localStorage.getItem('telegram_still_on_date') === dayKey) return;
-        localStorage.setItem('telegram_still_on_date', dayKey);
-      } catch (e) {}
+      // --- 07:05 trở đi: báo BẬT (1 lần/ngày) ---
+      if (h > 7 || (h === 7 && m >= 5)) {
+        try {
+          if (localStorage.getItem('telegram_on_date') !== day) {
+            localStorage.setItem('telegram_on_date', day);
+            notifyTelegram('on');
+          }
+        } catch (e) {
+          notifyTelegram('on');
+        }
+      }
 
-      notifyTelegram('still_on');
-    }, 60 * 1000);
+      // --- 22:01 trở đi: cảnh báo vẫn bật nếu đang chiếu (1 lần/ngày) ---
+      if (Slideshow.isPlaying && (h > 22 || (h === 22 && m >= 1))) {
+        try {
+          if (localStorage.getItem('telegram_still_on_date') !== day) {
+            localStorage.setItem('telegram_still_on_date', day);
+            notifyTelegram('still_on');
+          }
+        } catch (e2) {
+          notifyTelegram('still_on');
+        }
+      }
+    }
+
+    // Chạy ngay 1 lần + mỗi phút
+    tick();
+    telegramWatchTimer = setInterval(tick, 60 * 1000);
+  }
+
+  // Giữ tên cũ nếu chỗ khác gọi
+  function startStillOnWatcher() {
+    startTelegramWatchers();
   }
 
   function hidePanel() {
