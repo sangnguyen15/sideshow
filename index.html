@@ -26,6 +26,9 @@
     </div>
   </div>
 
+  <!-- ========== EVENT CARD OVERLAY ========== -->
+  <div id="event-overlay" class="event-overlay" aria-hidden="true"></div>
+
   <!-- ========== CONTROL PANEL ========== -->
   <div id="control-panel" class="panel hidden">
     <div class="panel-header">
@@ -39,15 +42,12 @@
     </div>
 
     <div class="panel-body" id="panel-body">
-      <!-- Sources (chỉ xem, lấy từ Google Sheet qua GAS) -->
       <section class="section">
         <h2>Thư mục ảnh đang dùng</h2>
         <ul id="source-list" class="source-list"></ul>
-        <p class="hint" id="sources-hint">Danh sách lấy từ Google Sheet. Bấm nút bên dưới để cập nhật.</p>
-        <button id="btn-refresh-sources" class="btn" style="width:100%;margin-top:10px">Làm mới danh sách thư mục</button>
+        <p class="hint" id="sources-hint">Danh sách lấy từ Google Sheet. Bấm Cập nhật để load lại.</p>
       </section>
 
-      <!-- Settings -->
       <section class="section">
         <h2>Cài đặt Slideshow</h2>
 
@@ -107,28 +107,45 @@
         </div>
       </section>
 
-      <!-- Actions -->
+      <section class="section">
+        <h2>Thiệp sự kiện</h2>
+        <div class="setting-row">
+          <label>Thời gian hiện thiệp (giây)</label>
+          <input type="number" id="setting-event-duration" min="5" max="300" value="60" />
+        </div>
+        <div class="setting-row">
+          <label>Khoảng cách giữa hai lần thiệp (phút)</label>
+          <input type="number" id="setting-event-interval" min="1" max="1440" value="60" />
+        </div>
+        <p class="hint">Sự kiện lấy từ tab Events trên Sheet (đúng ngày). Box tự kiểm tra cấu hình mỗi 2 phút.</p>
+      </section>
+
       <section class="section actions">
         <button id="btn-start" class="btn btn-primary">Bắt đầu chiếu</button>
         <button id="btn-resume" class="btn">Tiếp tục từ vị trí cũ</button>
-        <button id="btn-apply-now" class="btn">Áp dụng ngay (đổi setting đang chạy)</button>
+        <button id="btn-apply-now" class="btn">Áp dụng ngay (máy này)</button>
+        <button id="btn-save-cloud" class="btn btn-primary">Lưu lên cloud</button>
+        <button id="btn-refresh-config" class="btn">Cập nhật (load từ Sheet)</button>
         <button id="btn-reset-progress" class="btn btn-secondary">Reset vị trí chiếu</button>
         <button id="btn-hard-reload" class="btn btn-secondary">Tải lại bản mới nhất</button>
-        <p class="hint">Dùng sau khi cập nhật code trên GitHub. Trang sẽ reload và lấy Sheet/Drive mới.</p>
+        <p class="hint">Lưu lên cloud: ghi Sheet (cần PIN nếu đã đặt). Cập nhật / tắt-mở máy: box nhận cấu hình mới. Poll tự động mỗi 2 phút.</p>
       </section>
+    </div>
+
+    <div class="panel-footer-actions">
+      <button type="button" id="btn-save-cloud-foot" class="btn btn-primary">Lưu lên cloud</button>
+      <button type="button" id="btn-refresh-config-foot" class="btn">Cập nhật</button>
     </div>
   </div>
 
-  <!-- Floating open button when panel is hidden -->
   <button id="btn-open-panel" class="btn-floating" title="Mở cài đặt" aria-label="Cài đặt">⚙️</button>
-
-  <!-- Status bar (optional info) -->
   <div id="status-bar"></div>
 
   <script src="js/config.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/drive.js"></script>
   <script src="js/slideshow.js"></script>
+  <script src="js/events.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

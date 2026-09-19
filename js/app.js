@@ -1,19 +1,21 @@
 /**
- * app.js – Giao diện + lấy cấu hình từ Google Apps Script + điều khiển slideshow
+ * app.js – UI + GAS config + settings cloud + events + slideshow
  */
-
 (function () {
   const panel = document.getElementById('control-panel');
   const btnOpenPanel = document.getElementById('btn-open-panel');
   const btnClosePanel = document.getElementById('btn-close-panel');
   const sourceList = document.getElementById('source-list');
   const sourcesHint = document.getElementById('sources-hint');
-  const btnRefreshSources = document.getElementById('btn-refresh-sources');
   const btnStart = document.getElementById('btn-start');
   const btnResume = document.getElementById('btn-resume');
   const btnApplyNow = document.getElementById('btn-apply-now');
   const btnResetProgress = document.getElementById('btn-reset-progress');
   const btnHardReload = document.getElementById('btn-hard-reload');
+  const btnSaveCloud = document.getElementById('btn-save-cloud');
+  const btnRefreshConfig = document.getElementById('btn-refresh-config');
+  const btnSaveCloudFoot = document.getElementById('btn-save-cloud-foot');
+  const btnRefreshConfigFoot = document.getElementById('btn-refresh-config-foot');
   const statusBar = document.getElementById('status-bar');
 
   const settingDuration = document.getElementById('setting-duration');
@@ -23,31 +25,30 @@
   const settingIdle = document.getElementById('setting-idle');
   const settingShuffle = document.getElementById('setting-shuffle');
   const settingResume = document.getElementById('setting-resume');
+  const settingEventDuration = document.getElementById('setting-event-duration');
+  const settingEventInterval = document.getElementById('setting-event-interval');
 
-  // Runtime state
-  let sources = [];          // {id, name, link, photos: []}
+  let sources = [];
   let apiKey = '';
+  let lastUpdatedAt = '';
+  let allEvents = [];
   let idleTimer = null;
   let isIdle = false;
   let isLoadingConfig = false;
+  let pollTimer = null;
+
+  const POLL_MS = 2 * 60 * 1000;
 
   function init() {
-    const settings = Storage.getSettings();
-
-    settingDuration.value = settings.duration;
-    settingTransition.value = settings.transition;
-    settingEffect.value = settings.effect;
-    settingFit.value = settings.fit;
-    settingIdle.value = settings.idle;
-    settingShuffle.checked = settings.shuffle;
-    settingResume.checked = settings.resume;
-
+    applySettingsToUI(Storage.getSettings());
     bindEvents();
-    // Lần đầu vào trang: ẩn panel, ẩn bánh răng
     hidePanel();
     hideGear();
     resetIdleTimer();
+
+    var settings = Storage.getSettings();
     Slideshow.init(settings, updateStatus, showError);
+    EventCards.init(settings, Slideshow);
 
     window.addEventListener('offline', function () {
       if (Slideshow.isPlaying) Slideshow.handleOffline();
@@ -56,21 +57,78 @@
       Slideshow.handleOnline();
     });
 
-    // Telegram theo khung giờ (7:05 BẬT, 22:01 vẫn bật)
     startTelegramWatchers();
-
-    // Tự load cấu hình từ GAS rồi tự chiếu
     loadConfigAndStart(true);
+    startSettingsPoll();
+  }
+
+  function applySettingsToUI(s) {
+    if (!s) return;
+    settingDuration.value = s.duration;
+    settingTransition.value = s.transition;
+    settingEffect.value = s.effect;
+    settingFit.value = s.fit;
+    settingIdle.value = s.idle;
+    settingShuffle.checked = !!s.shuffle;
+    settingResume.checked = !!s.resume;
+    if (settingEventDuration) settingEventDuration.value = s.event_duration != null ? s.event_duration : 60;
+    if (settingEventInterval) settingEventInterval.value = s.event_interval_minutes != null ? s.event_interval_minutes : 60;
+  }
+
+  function collectSettingsFromUI() {
+    return {
+      duration: parseInt(settingDuration.value, 10) || 120,
+      transition: parseFloat(settingTransition.value) || 30,
+      effect: settingEffect.value,
+      fit: settingFit.value || 'contain',
+      idle: parseInt(settingIdle.value, 10) || 8,
+      shuffle: settingShuffle.checked,
+      resume: settingResume.checked,
+      event_duration: parseInt(settingEventDuration && settingEventDuration.value, 10) || 60,
+      event_interval_minutes: parseInt(settingEventInterval && settingEventInterval.value, 10) || 60
+    };
+  }
+
+  function saveSettingsFromUI() {
+    var settings = collectSettingsFromUI();
+    Storage.saveSettings(settings);
+    Slideshow.settings = settings;
+    EventCards.setSettings(settings);
+    return settings;
+  }
+
+  function applyRemoteSettings(settings, updatedAt) {
+    if (!settings) return;
+    var merged = Object.assign({}, Storage.defaults(), settings);
+    Storage.saveSettings(merged);
+    if (updatedAt) {
+      lastUpdatedAt = updatedAt;
+      Storage.saveSettingsUpdatedAt(updatedAt);
+    }
+    applySettingsToUI(merged);
+    Slideshow.settings = merged;
+    EventCards.setSettings(merged);
+    // Restart event interval with new minutes if playing
+    if (Slideshow.isPlaying && EventCards.eventsToday.length) {
+      EventCards.onSlideshowStarted();
+    }
   }
 
   function bindEvents() {
     btnClosePanel.addEventListener('click', hidePanel);
     btnOpenPanel.addEventListener('click', showPanel);
 
-    btnRefreshSources.addEventListener('click', function () {
-      // Chỉ cập nhật Sheet/Drive, không reload code
+    function doRefresh() {
       loadConfigAndStart(false);
-    });
+    }
+    function doSaveCloud() {
+      saveSettingsToCloud();
+    }
+
+    if (btnRefreshConfig) btnRefreshConfig.addEventListener('click', doRefresh);
+    if (btnRefreshConfigFoot) btnRefreshConfigFoot.addEventListener('click', doRefresh);
+    if (btnSaveCloud) btnSaveCloud.addEventListener('click', doSaveCloud);
+    if (btnSaveCloudFoot) btnSaveCloudFoot.addEventListener('click', doSaveCloud);
 
     if (btnHardReload) {
       btnHardReload.addEventListener('click', function () {
@@ -86,7 +144,7 @@
       if (Slideshow.isPlaying) {
         Slideshow.applySettingsNow();
       } else {
-        alert('Chưa đang chiếu. Setting đã được lưu.');
+        alert('Chưa đang chiếu. Setting đã lưu trên máy này.');
       }
     });
     btnResetProgress.addEventListener('click', function () {
@@ -95,11 +153,14 @@
       alert('Đã reset vị trí chiếu');
     });
 
-    [settingDuration, settingTransition, settingEffect, settingFit, settingIdle, settingShuffle, settingResume].forEach(function (el) {
-      el.addEventListener('change', saveSettingsFromUI);
+    var settingEls = [
+      settingDuration, settingTransition, settingEffect, settingFit, settingIdle,
+      settingShuffle, settingResume, settingEventDuration, settingEventInterval
+    ];
+    settingEls.forEach(function (el) {
+      if (el) el.addEventListener('change', saveSettingsFromUI);
     });
 
-    // Di chuyển chuột / chạm → hiện bánh răng + reset idle
     ['mousemove', 'mousedown', 'pointerdown', 'touchstart', 'keydown'].forEach(function (evt) {
       document.addEventListener(evt, onUserActivity, { passive: true });
     });
@@ -112,12 +173,10 @@
       panelBody.scrollTop += dy;
     }
 
-    // 1) Lăn chuột / trackpad
     document.addEventListener('wheel', function (e) {
       if (panel.classList.contains('hidden')) return;
       if (!panelBody) return;
       var dy = e.deltaY;
-      // deltaMode: 1 = dòng, 2 = trang
       if (e.deltaMode === 1) dy *= 24;
       if (e.deltaMode === 2) dy *= panelBody.clientHeight;
       scrollPanelBy(dy);
@@ -125,12 +184,10 @@
       onUserActivity();
     }, { passive: false, capture: true });
 
-    // 2) Kéo chuột (drag) để cuộn – dùng khi wheel không ăn trên WebView
     var dragState = null;
     if (panelBody) {
       panelBody.addEventListener('mousedown', function (e) {
         if (e.button !== 0) return;
-        // không bắt đầu drag khi bấm input/button/select
         var t = e.target && e.target.tagName;
         if (t === 'INPUT' || t === 'SELECT' || t === 'BUTTON' || t === 'A' || t === 'LABEL') return;
         dragState = { y: e.clientY, scroll: panelBody.scrollTop };
@@ -139,8 +196,7 @@
       });
       document.addEventListener('mousemove', function (e) {
         if (!dragState) return;
-        var dy = dragState.y - e.clientY;
-        panelBody.scrollTop = dragState.scroll + dy;
+        panelBody.scrollTop = dragState.scroll + (dragState.y - e.clientY);
         onUserActivity();
       });
       document.addEventListener('mouseup', function () {
@@ -150,23 +206,10 @@
       });
     }
 
-    // 3) Nút ▲ ▼
     var btnUp = document.getElementById('btn-panel-up');
     var btnDown = document.getElementById('btn-panel-down');
-    if (btnUp) {
-      btnUp.addEventListener('click', function (e) {
-        e.preventDefault();
-        scrollPanelBy(-120);
-        onUserActivity();
-      });
-    }
-    if (btnDown) {
-      btnDown.addEventListener('click', function (e) {
-        e.preventDefault();
-        scrollPanelBy(120);
-        onUserActivity();
-      });
-    }
+    if (btnUp) btnUp.addEventListener('click', function (e) { e.preventDefault(); scrollPanelBy(-120); onUserActivity(); });
+    if (btnDown) btnDown.addEventListener('click', function (e) { e.preventDefault(); scrollPanelBy(120); onUserActivity(); });
 
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') {
@@ -174,7 +217,6 @@
         else hidePanel();
         return;
       }
-      // Cuộn panel bằng phím khi menu đang mở (TV / màn nhỏ)
       if (!panel.classList.contains('hidden')) {
         var body = panel.querySelector('.panel-body');
         if (!body) return;
@@ -197,10 +239,8 @@
   }
 
   function hardReloadApp() {
-    // Ép tải bản mới: bỏ cache query cũ, gắn timestamp
     var base = location.href.split('#')[0];
     var clean = base.split('?')[0];
-    // Xóa Cache API nếu có (PWA/kiosk đôi khi giữ)
     var go = function () {
       location.replace(clean + '?v=' + Date.now());
     };
@@ -216,38 +256,34 @@
   function showGear() {
     btnOpenPanel.classList.add('gear-visible');
   }
-
   function hideGear() {
     btnOpenPanel.classList.remove('gear-visible');
   }
-
   function onUserActivity() {
-    // Hiện bánh răng khi có tương tác (chuột / phím / chạm)
-    if (panel.classList.contains('hidden')) {
-      showGear();
-    }
+    if (panel.classList.contains('hidden')) showGear();
     resetIdleTimer();
   }
 
-  /**
-   * Gọi Google Apps Script lấy apiKey + danh sách sources
-   */
+  function getGasUrl() {
+    return (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.GAS_URL) ? APP_CONFIG.GAS_URL : '';
+  }
+
   function fetchConfigFromGAS() {
     return new Promise(function (resolve, reject) {
-      var url = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.GAS_URL) ? APP_CONFIG.GAS_URL : '';
+      var url = getGasUrl();
       if (!url || url.indexOf('DÁN_URL_GAS') !== -1) {
         reject(new Error('Chưa cấu hình GAS_URL trong js/config.js'));
         return;
       }
-
       var timeout = (APP_CONFIG && APP_CONFIG.GAS_TIMEOUT) || 15000;
       var timer = setTimeout(function () {
         reject(new Error('Hết thời gian chờ Google Sheet (timeout)'));
       }, timeout);
 
-      // Dùng fetch nếu có, fallback XMLHttpRequest cho máy cũ
+      var full = url + (url.indexOf('?') >= 0 ? '&' : '?') + '_t=' + Date.now();
+
       if (typeof fetch === 'function') {
-        fetch(url, { method: 'GET', redirect: 'follow' })
+        fetch(full, { method: 'GET', redirect: 'follow', cache: 'no-store' })
           .then(function (res) {
             clearTimeout(timer);
             if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -260,18 +296,13 @@
           });
       } else {
         var xhr = new XMLHttpRequest();
-        xhr.open('GET', url, true);
+        xhr.open('GET', full, true);
         xhr.onload = function () {
           clearTimeout(timer);
           if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              resolve(JSON.parse(xhr.responseText));
-            } catch (e) {
-              reject(new Error('JSON không hợp lệ từ GAS'));
-            }
-          } else {
-            reject(new Error('HTTP ' + xhr.status));
-          }
+            try { resolve(JSON.parse(xhr.responseText)); }
+            catch (e) { reject(new Error('JSON không hợp lệ từ GAS')); }
+          } else reject(new Error('HTTP ' + xhr.status));
         };
         xhr.onerror = function () {
           clearTimeout(timer);
@@ -282,14 +313,87 @@
     });
   }
 
-  /**
-   * Load config từ GAS → lấy ảnh Drive → (tuỳ chọn) bắt đầu chiếu
-   * @param {boolean} autoStart - true = tự chiếu sau khi load
-   */
+  function saveSettingsToCloud() {
+    var url = getGasUrl();
+    if (!url || url.indexOf('DÁN_URL_GAS') !== -1) {
+      alert('Chưa cấu hình GAS_URL');
+      return;
+    }
+    var pin = prompt('Nhập mã PIN lưu cấu hình (để trống nếu chưa đặt PIN):', '') || '';
+    var settings = saveSettingsFromUI();
+
+    var payload = JSON.stringify({
+      action: 'saveSettings',
+      pin: pin,
+      settings: settings
+    });
+
+    Slideshow.showLoading(true);
+    fetch(url, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: payload
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        Slideshow.showLoading(false);
+        if (data && data.ok) {
+          if (data.updatedAt) {
+            lastUpdatedAt = data.updatedAt;
+            Storage.saveSettingsUpdatedAt(data.updatedAt);
+          }
+          alert('Đã lưu cấu hình lên cloud.\nBox sẽ tự nhận trong ~2 phút (hoặc bấm Cập nhật trên box).');
+        } else {
+          alert('Lưu thất bại: ' + ((data && data.error) || 'unknown'));
+        }
+      })
+      .catch(function (err) {
+        Slideshow.showLoading(false);
+        alert('Lỗi lưu cloud: ' + (err.message || err));
+      });
+  }
+
+  /** Poll nhẹ: chỉ so updatedAt / settings, không dừng chiếu */
+  function startSettingsPoll() {
+    if (pollTimer) return;
+    pollTimer = setInterval(function () {
+      pollConfigSoft();
+    }, POLL_MS);
+  }
+
+  function pollConfigSoft() {
+    fetchConfigFromGAS().then(function (data) {
+      if (!data || data.error) return;
+      var remoteAt = data.updatedAt || '';
+      if (remoteAt && lastUpdatedAt && remoteAt === lastUpdatedAt) {
+        // same timestamp – still check settings hash lightly
+      }
+      if (data.settings) {
+        var local = Storage.getSettings();
+        var changed = false;
+        ['duration', 'transition', 'effect', 'fit', 'idle', 'shuffle', 'resume', 'event_duration', 'event_interval_minutes'].forEach(function (k) {
+          if (data.settings[k] !== undefined && String(data.settings[k]) !== String(local[k])) changed = true;
+        });
+        if (changed || (remoteAt && remoteAt !== lastUpdatedAt)) {
+          applyRemoteSettings(data.settings, remoteAt);
+          if (data.events) {
+            allEvents = data.events;
+            EventCards.setEventsFromConfig(allEvents);
+          }
+          updateStatus('Đã tự cập nhật cấu hình từ cloud');
+        } else if (remoteAt) {
+          lastUpdatedAt = remoteAt;
+        }
+      }
+    }).catch(function () {});
+  }
+
   async function loadConfigAndStart(autoStart) {
     if (isLoadingConfig) return;
     isLoadingConfig = true;
 
+    EventCards.stop();
     Slideshow.stop();
     Slideshow.showLoading(true);
     if (sourcesHint) sourcesHint.textContent = 'Đang tải cấu hình từ Google Sheet...';
@@ -297,20 +401,23 @@
 
     try {
       var data = await fetchConfigFromGAS();
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-      if (!data.apiKey) {
-        throw new Error('Sheet chưa có api_key trong tab Config');
-      }
+      if (data.error) throw new Error(data.error);
+      if (!data.apiKey) throw new Error('Sheet chưa có api_key trong tab Config');
       if (!data.sources || data.sources.length === 0) {
         throw new Error('Sheet chưa có thư mục ảnh nào (tab Sources)');
       }
 
       apiKey = data.apiKey;
+      lastUpdatedAt = data.updatedAt || '';
+      if (lastUpdatedAt) Storage.saveSettingsUpdatedAt(lastUpdatedAt);
 
-      // Build sources (chưa có photos)
+      if (data.settings) {
+        applyRemoteSettings(data.settings, data.updatedAt);
+      }
+
+      allEvents = data.events || [];
+      EventCards.setEventsFromConfig(allEvents);
+
       sources = data.sources.map(function (s, idx) {
         var folderId = Drive.extractFolderId(s.link);
         return {
@@ -321,11 +428,8 @@
         };
       }).filter(function (s) { return s.id; });
 
-      if (sources.length === 0) {
-        throw new Error('Không trích xuất được Folder ID từ các link trong Sheet');
-      }
+      if (!sources.length) throw new Error('Không trích xuất được Folder ID từ các link trong Sheet');
 
-      // Lấy danh sách ảnh từng folder
       for (var i = 0; i < sources.length; i++) {
         if (sourcesHint) {
           sourcesHint.textContent = 'Đang tải ảnh folder ' + (i + 1) + '/' + sources.length + '...';
@@ -338,26 +442,23 @@
         }
       }
 
-      // Bỏ folder không có ảnh
       sources = sources.filter(function (s) { return s.photos && s.photos.length > 0; });
-
-      if (sources.length === 0) {
-        throw new Error('Không lấy được ảnh nào. Kiểm tra folder đã share "Anyone with the link" chưa.');
+      if (!sources.length) {
+        throw new Error('Không lấy được ảnh nào. Kiểm tra folder đã share "Anyone with the link".');
       }
 
       renderSourceList();
       if (sourcesHint) {
-        sourcesHint.textContent = 'Đã tải ' + sources.length + ' thư mục. Cập nhật lúc ' + new Date().toLocaleTimeString();
+        sourcesHint.textContent = 'Đã tải ' + sources.length + ' thư mục · Sự kiện hôm nay: ' +
+          EventCards.eventsToday.length + ' · ' + new Date().toLocaleTimeString();
       }
 
       Slideshow.showLoading(false);
       isLoadingConfig = false;
 
       if (autoStart) {
-        var settings = Storage.getSettings();
-        startSlideshow(!!settings.resume);
+        startSlideshow(!!Storage.getSettings().resume);
       } else {
-        // Làm mới thủ công → luôn bắt đầu lại từ đầu
         startSlideshow(false);
       }
     } catch (err) {
@@ -380,45 +481,23 @@
     }
     sources.forEach(function (s) {
       var li = document.createElement('li');
-      var count = (s.photos && s.photos.length) ? s.photos.length : 0;
-      li.innerHTML = '<span>' + escapeHtml(s.name) + ' <small style="opacity:0.6">(' + count + ' ảnh)</small></span>';
+      li.textContent = s.name + ' (' + (s.photos ? s.photos.length : 0) + ' ảnh)';
       sourceList.appendChild(li);
     });
-  }
-
-  function escapeHtml(str) {
-    var d = document.createElement('div');
-    d.textContent = str;
-    return d.innerHTML;
-  }
-
-  function saveSettingsFromUI() {
-    var settings = {
-      duration: parseInt(settingDuration.value, 10) || 120,
-      transition: parseFloat(settingTransition.value) || 30,
-      effect: settingEffect.value,
-      fit: settingFit.value || 'contain',
-      idle: parseInt(settingIdle.value, 10) || 8,
-      shuffle: settingShuffle.checked,
-      resume: settingResume.checked
-    };
-    Storage.saveSettings(settings);
-    Slideshow.settings = settings;
   }
 
   async function startSlideshow(resume) {
     saveSettingsFromUI();
 
     if (!apiKey) {
-      alert('Chưa có API Key (lấy từ Google Sheet). Bấm "Làm mới danh sách thư mục".');
+      alert('Chưa có API Key (lấy từ Google Sheet). Bấm Cập nhật.');
       return;
     }
     if (!sources.length) {
-      alert('Chưa có thư mục ảnh. Kiểm tra Google Sheet hoặc bấm Làm mới.');
+      alert('Chưa có thư mục ảnh. Kiểm tra Google Sheet hoặc bấm Cập nhật.');
       return;
     }
 
-    // Nếu thiếu photos (hiếm) → fetch lại
     var needFetch = sources.some(function (s) { return !s.photos || !s.photos.length; });
     if (needFetch) {
       Slideshow.showLoading(true);
@@ -449,12 +528,9 @@
 
     var playSources;
     if (Slideshow.settings.shuffle) {
-      // Bật: gộp tất cả ảnh mọi folder → xáo một lần
       var allPhotos = [];
       sources.forEach(function (s) {
-        (s.photos || []).forEach(function (p) {
-          allPhotos.push(p);
-        });
+        (s.photos || []).forEach(function (p) { allPhotos.push(p); });
       });
       shuffleArr(allPhotos);
       playSources = [{
@@ -464,141 +540,122 @@
         photos: allPhotos
       }];
     } else {
-      // Tắt: xáo trong từng folder, chiếu hết folder này mới sang folder khác
       playSources = sources.map(function (s) {
         var photos = (s.photos || []).slice();
         shuffleArr(photos);
-        return {
-          id: s.id,
-          name: s.name,
-          link: s.link,
-          photos: photos
-        };
+        return { id: s.id, name: s.name, link: s.link, photos: photos };
       });
     }
 
     Slideshow.setSources(playSources);
     hidePanel();
     await Slideshow.start(resume);
-    // Telegram "BẬT" gửi theo khung giờ ~7:05 (xem startTelegramWatchers)
+    EventCards.setSettings(Storage.getSettings());
+    EventCards.onSlideshowStarted();
     startTelegramWatchers();
   }
 
-  /**
-   * Gửi notify qua GAS → Telegram
-   * event: 'on' | 'still_on'
-   */
   function notifyTelegram(event) {
-    try {
-      var base = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.GAS_URL) ? APP_CONFIG.GAS_URL : '';
-      if (!base || base.indexOf('DÁN_URL_GAS') !== -1) return;
-
-      var url = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'action=notify&event=' + encodeURIComponent(event);
-
-      if (typeof fetch === 'function') {
-        fetch(url, { method: 'GET', mode: 'cors', redirect: 'follow' }).catch(function () {});
-      } else {
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', url, true);
-        xhr.send();
+    return new Promise(function (resolve) {
+      try {
+        var base = getGasUrl();
+        if (!base || base.indexOf('DÁN_URL_GAS') !== -1) {
+          resolve(false);
+          return;
+        }
+        var url = base + (base.indexOf('?') >= 0 ? '&' : '?') +
+          'action=notify&event=' + encodeURIComponent(event) + '&_t=' + Date.now();
+        if (typeof fetch === 'function') {
+          fetch(url, { method: 'GET', mode: 'cors', redirect: 'follow', cache: 'no-store' })
+            .then(function (res) { resolve(!!res && res.ok !== false); })
+            .catch(function () { resolve(false); });
+        } else {
+          var xhr = new XMLHttpRequest();
+          xhr.open('GET', url, true);
+          xhr.onload = function () { resolve(xhr.status >= 200 && xhr.status < 400); };
+          xhr.onerror = function () { resolve(false); };
+          xhr.send();
+        }
+      } catch (err) {
+        resolve(false);
       }
-    } catch (err) {
-      console.warn('notifyTelegram', err);
-    }
+    });
   }
 
   var telegramWatchTimer = null;
+  var telegramSending = { on: false, still_on: false };
 
   function todayKey(now) {
     now = now || new Date();
     return now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate();
   }
 
-  /**
-   * Khung giờ Telegram (theo đồng hồ box):
-   * - Từ 07:05: gửi "BẬT" 1 lần/ngày (trang đang mở là đủ)
-   * - Từ 22:01: gửi "VẪN BẬT" 1 lần/ngày nếu vẫn đang chiếu
-   */
+  function trySendOncePerDay(event, storageKey, day) {
+    if (telegramSending[event]) return;
+    try {
+      if (localStorage.getItem(storageKey) === day) return;
+    } catch (e) {}
+    telegramSending[event] = true;
+    notifyTelegram(event).then(function (ok) {
+      telegramSending[event] = false;
+      if (ok) {
+        try { localStorage.setItem(storageKey, day); } catch (e2) {}
+      }
+    });
+  }
+
   function startTelegramWatchers() {
     if (telegramWatchTimer) return;
-
     function tick() {
       var now = new Date();
       var h = now.getHours();
       var m = now.getMinutes();
       var day = todayKey(now);
-
-      // --- 07:05 trở đi: báo BẬT (1 lần/ngày) ---
       if (h > 7 || (h === 7 && m >= 5)) {
-        try {
-          if (localStorage.getItem('telegram_on_date') !== day) {
-            localStorage.setItem('telegram_on_date', day);
-            notifyTelegram('on');
-          }
-        } catch (e) {
-          notifyTelegram('on');
-        }
+        trySendOncePerDay('on', 'telegram_on_date', day);
       }
-
-      // --- 22:01 trở đi: cảnh báo vẫn bật nếu đang chiếu (1 lần/ngày) ---
       if (Slideshow.isPlaying && (h > 22 || (h === 22 && m >= 1))) {
-        try {
-          if (localStorage.getItem('telegram_still_on_date') !== day) {
-            localStorage.setItem('telegram_still_on_date', day);
-            notifyTelegram('still_on');
-          }
-        } catch (e2) {
-          notifyTelegram('still_on');
-        }
+        trySendOncePerDay('still_on', 'telegram_still_on_date', day);
       }
     }
-
-    // Chạy ngay 1 lần + mỗi phút
     tick();
     telegramWatchTimer = setInterval(tick, 60 * 1000);
   }
 
-  // Giữ tên cũ nếu chỗ khác gọi
-  function startStillOnWatcher() {
-    startTelegramWatchers();
-  }
-
   function hidePanel() {
     panel.classList.add('hidden');
-    // Ẩn panel nhưng vẫn có thể hiện gear nếu vừa có hoạt động
     resetIdleTimer();
   }
-
   function showPanel() {
     panel.classList.remove('hidden');
-    hideGear(); // panel đang mở → không cần icon
+    hideGear();
     document.body.classList.remove('idle');
     isIdle = false;
     resetIdleTimer();
   }
-
   function resetIdleTimer() {
     if (idleTimer) clearTimeout(idleTimer);
     document.body.classList.remove('idle');
     isIdle = false;
-
     var idleSec = parseInt(settingIdle.value, 10) || 8;
     idleTimer = setTimeout(function () {
       isIdle = true;
       document.body.classList.add('idle');
-      // Ẩn panel + bánh răng khi không tương tác
       panel.classList.add('hidden');
       hideGear();
     }, idleSec * 1000);
   }
 
   function updateStatus(text) {
-    statusBar.textContent = text || '';
+    if (statusBar) statusBar.textContent = text || '';
   }
-
   function showError(msg) {
-    alert(msg);
+    console.error(msg);
   }
 
-  init();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 })();

@@ -344,8 +344,13 @@ const Slideshow = {
     if (!this.isPlaying) return;
     var self = this;
     this.timer = setTimeout(function () {
+      // Thiệp sự kiện: nếu đang chờ hiện thì chen trước khi next
+      if (typeof EventCards !== 'undefined' && EventCards.pendingShow) {
+        EventCards.onPhotoHoldComplete();
+        if (EventCards.visible) return;
+      }
       self.next();
-    }, this.getHoldMs());
+    }, self.getHoldMs());
   },
 
   /**
