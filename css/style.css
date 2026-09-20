@@ -466,7 +466,7 @@ body.idle #status-bar {
   }
 }
 
-/* ========== EVENT OVERLAY / CARDS (khung mẫu JPG) ========== */
+/* ========== EVENT OVERLAY – iframe full màn hình 16:9 ========== */
 .event-overlay {
   position: fixed;
   inset: 0;
@@ -474,193 +474,36 @@ body.idle #status-bar {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.55);
+  /* Nền tối mờ phía sau iframe */
+  background: rgba(0, 0, 0, 0.72);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.4s ease;
-  padding: 2vmin;
+  transition: opacity 0.5s ease;
 }
+
 .event-overlay.show {
   opacity: 1;
   pointer-events: auto;
 }
 
-.event-card-frame {
-  position: relative;
-  width: min(960px, 96vw);
-  /* tỷ lệ gần ảnh mẫu 1168x784 */
-  aspect-ratio: 1168 / 784;
-  max-height: 92vh;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 16px 48px rgba(0,0,0,0.45);
-  background: #111;
-}
-
-.event-frame-bg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: fill;
+/*
+ * iframe chiếm toàn bộ màn hình theo tỷ lệ 16:9.
+ * Dùng kỹ thuật: width = 100vw, height tính từ width × (9/16),
+ * nhưng nếu màn hình cao hơn → giới hạn height = 100vh và width tính ngược.
+ * Kết quả: luôn full màn hình, đúng tỷ lệ, không bị crop.
+ */
+.event-iframe {
   display: block;
-  z-index: 1;
-  pointer-events: none;
-}
+  border: none;
+  background: transparent;
 
-/* Ô ảnh sự kiện – đè lên vùng ảnh trái của khung mẫu */
-.event-photo-slot {
-  position: absolute;
-  z-index: 2;
-  left: 4.2%;
-  top: 11.5%;
-  width: 42.5%;
-  height: 72%;
-  border-radius: 10px;
-  overflow: hidden;
-  /* nền đặc – không lộ ảnh mẫu dưới nếu ảnh sự kiện lỗi/chậm */
-  background: #f0ebe6;
-}
-.theme-wedding .event-photo-slot {
-  left: 4.5%;
-  top: 10.5%;
-  width: 43%;
-  height: 74%;
-  border-radius: 8px;
-  background: #ffe4ec;
-}
+  /* Chiều rộng ưu tiên 100vw, nhưng không được cao hơn 100vh */
+  width: min(100vw, calc(100vh * 16 / 9));
+  height: min(100vh, calc(100vw * 9 / 16));
 
-.event-user-photo {
-  width: 100%;
-  height: 100%;
-  object-fit: cover; /* luôn phủ kín ô */
-  object-position: center center;
-  display: block;
-  background: inherit;
-}
-.event-user-photo-empty {
-  width: 100%;
-  height: 100%;
-  background: inherit;
-}
-
-/* Chữ động – che vùng chữ sẵn trên khung mẫu */
-.event-text-slot {
-  position: absolute;
-  z-index: 3;
-  right: 3.5%;
-  top: 10%;
-  width: 46%;
-  height: 78%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 2% 2%;
-  box-sizing: border-box;
-  /* nền gần màu khung để che text bake-in */
-  border-radius: 8px;
-}
-.theme-birthday .event-text-slot {
-  background: linear-gradient(180deg, rgba(255,252,248,0.94) 0%, rgba(255,244,235,0.96) 100%);
-}
-.theme-wedding .event-text-slot {
-  background: linear-gradient(180deg, rgba(255,248,250,0.94) 0%, rgba(255,236,242,0.96) 100%);
-}
-
-.theme-birthday .ev-line1 {
-  font-size: clamp(0.95rem, 2.2vmin, 1.45rem);
-  color: #2c3e6b;
-  font-weight: 600;
-  margin: 0;
-}
-.theme-birthday .ev-name {
-  font-size: clamp(1.5rem, 4.5vmin, 2.9rem);
-  font-weight: 700;
-  color: #d45d7a;
-  margin: 0.12em 0 0.15em;
-  line-height: 1.15;
-  font-family: Georgia, 'Times New Roman', serif;
-}
-.theme-birthday .ev-count-label {
-  font-size: clamp(0.85rem, 1.8vmin, 1.1rem);
-  color: #2c3e6b;
-  margin: 0;
-}
-.theme-birthday .ev-count-num {
-  font-size: clamp(2.4rem, 7.5vmin, 4.6rem);
-  font-weight: 800;
-  color: #c9a227;
-  margin: 0;
-  line-height: 1;
-}
-.theme-birthday .ev-range {
-  font-size: clamp(0.7rem, 1.5vmin, 0.9rem);
-  color: #666;
-  margin: 0.45em 0 0;
-}
-
-.theme-wedding .ev-line1 {
-  font-size: clamp(1.15rem, 2.8vmin, 1.85rem);
-  /* cùng một màu toàn bộ chữ Kỷ niệm */
-  color: #c45c7a;
-  font-weight: 700;
-  font-family: Georgia, 'Times New Roman', serif;
-  margin: 0;
-  letter-spacing: 0.02em;
-}
-.theme-wedding .ev-count-num.wedding-n {
-  font-size: clamp(2.8rem, 9vmin, 5.5rem);
-  font-weight: 800;
-  color: #d4a017;
-  margin: 0.08em 0;
-  line-height: 1;
-}
-.theme-wedding .ev-count-label {
-  font-size: clamp(0.9rem, 2vmin, 1.25rem);
-  color: #8a5a40;
-  margin: 0;
-}
-.theme-wedding .ev-pair {
-  font-size: clamp(0.95rem, 2.2vmin, 1.35rem);
-  color: #c45c7a;
-  font-weight: 600;
-  margin: 0.35em 0 0;
-  max-width: 100%;
-  padding: 0 4%;
-  box-sizing: border-box;
-  /* không họa tiết hai bên; tên dài được xuống dòng */
-  line-height: 1.25;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-  white-space: normal;
-}
-.theme-wedding .ev-heart {
-  color: #e53955;
-  padding: 0 0.15em;
-}
-.theme-wedding .ev-range {
-  font-size: clamp(0.7rem, 1.5vmin, 0.9rem);
-  color: #777;
-  margin: 0.4em 0 0;
-}
-
-@media (max-width: 640px) {
-  .event-card-frame {
-    width: 96vw;
-    max-height: 88vh;
-  }
-  .event-photo-slot {
-    left: 5%;
-    top: 10%;
-    width: 42%;
-    height: 70%;
-  }
-  .event-text-slot {
-    width: 48%;
-    right: 2.5%;
-  }
+  /* Bo góc nhẹ + đổ bóng cho đẹp */
+  border-radius: 0;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
 }
 
 /* ========== PANEL FOOTER (mobile) ========== */
@@ -693,7 +536,7 @@ body.idle #status-bar {
   .setting-row input,
   .setting-row select {
     min-height: 44px;
-    font-size: 16px; /* tránh zoom iOS */
+    font-size: 16px;
   }
   .btn {
     min-height: 44px;
