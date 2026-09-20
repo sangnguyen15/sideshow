@@ -1,7 +1,8 @@
 /**
  * events.js – Thiệp sinh nhật / kỷ niệm ngày cưới
- * - Dùng iframe trỏ vào preview-frames/ thay vì build HTML thủ công
- * - Nhiều sự kiện trong ngày → chiếu lần lượt liên tiếp, sau đó mới dừng
+ * - Dùng iframe trỏ vào preview-frames/
+ * - Nhiều sự kiện trong ngày → chiếu lần lượt liên tiếp
+ * - Fix: _busy = false + delay trước khi trả slideshow
  */
 var EventCards = {
   eventsToday: [],
@@ -13,7 +14,6 @@ var EventCards = {
   pendingShow: false,
   slideshowRef: null,
 
-  /* Đường dẫn tương đối từ index.html tới thư mục preview-frames */
   FRAME_BASE: 'preview-frames/',
 
   init: function (settings, slideshow) {
@@ -25,7 +25,6 @@ var EventCards = {
     this.settings = settings || this.settings;
   },
 
-  /** Lọc sự kiện đúng ngày hôm nay */
   setEventsFromConfig: function (allEvents) {
     var now = new Date();
     var m = now.getMonth() + 1;
@@ -37,7 +36,6 @@ var EventCards = {
     this.eventIndex  = 0;
   },
 
-  /** Chuyển link Drive → URL ảnh trực tiếp (lh3) */
   toImageUrl: function (link) {
     if (!link) return '';
     if (/^[a-zA-Z0-9_-]{20,}$/.test(link.trim())) {
@@ -53,7 +51,6 @@ var EventCards = {
     return '';
   },
 
-  /** Build URL cho iframe */
   buildFrameUrl: function (ev) {
     var isBirthday = ev.template === 'birthday';
     var base = this.FRAME_BASE +
@@ -77,9 +74,8 @@ var EventCards = {
     return base + '?' + params.toString();
   },
 
-  /** Gọi sau khi slideshow bắt đầu */
   onSlideshowStarted: function () {
-    this.eventIndex = 0;
+    this.eventIndex  = 0;
     this.pendingShow = false;
     this.clearTimers();
     if (!this.eventsToday.length) return;
@@ -103,7 +99,6 @@ var EventCards = {
     this.pendingShow = false;
   },
 
-  /** Đến giờ – đợi slideshow rảnh rồi hiện */
   requestShow: function () {
     if (!this.eventsToday.length) return;
     if (this.visible) return;
@@ -111,7 +106,6 @@ var EventCards = {
     this.tryShowWhenIdle();
   },
 
-  /** Slideshow gọi khi vừa xong một ảnh (hold xong / trước next) */
   onPhotoHoldComplete: function () {
     if (this.pendingShow) this.tryShowWhenIdle();
   },
@@ -120,24 +114,25 @@ var EventCards = {
     if (!this.pendingShow || this.visible) return;
     if (this.slideshowRef && this.slideshowRef._busy) return;
     this.pendingShow = false;
-    /* Reset index về 0 để chiếu từ đầu danh sách */
-    this.eventIndex = 0;
+    this.eventIndex  = 0;
     this.showNext();
   },
 
-  /**
-   * Chiếu sự kiện tại eventIndex.
-   * Khi xong → tự động chiếu sự kiện tiếp theo (nếu còn).
-   * Sau khi hết tất cả → ẩn overlay, slideshow tiếp tục.
-   */
   showNext: function () {
     if (!this.eventsToday.length) return;
+
+    /* Hết tất cả sự kiện → trả lại slideshow */
     if (this.eventIndex >= this.eventsToday.length) {
-      /* Hết tất cả sự kiện → trả lại slideshow */
       this.hide();
-      if (this.slideshowRef && this.slideshowRef.isPlaying) {
-        this.slideshowRef.scheduleAfterHold();
-      }
+      var self = this;
+      setTimeout(function () {
+        if (self.slideshowRef) {
+          self.slideshowRef._busy = false;
+          if (self.slideshowRef.isPlaying) {
+            self.slideshowRef.scheduleAfterHold();
+          }
+        }
+      }, 400);
       return;
     }
 
@@ -145,10 +140,13 @@ var EventCards = {
     this.render(ev);
     this.visible = true;
 
-    /* Tạm dừng slideshow */
-    if (this.slideshowRef && this.slideshowRef.timer) {
-      clearTimeout(this.slideshowRef.timer);
-      this.slideshowRef.timer = null;
+    /* Tạm dừng slideshow, reset _busy */
+    if (this.slideshowRef) {
+      if (this.slideshowRef.timer) {
+        clearTimeout(this.slideshowRef.timer);
+        this.slideshowRef.timer = null;
+      }
+      this.slideshowRef._busy = false;
     }
 
     var sec = (this.settings && this.settings.event_duration) || 60;
@@ -157,9 +155,9 @@ var EventCards = {
 
     if (this.hideTimer) clearTimeout(this.hideTimer);
     this.hideTimer = setTimeout(function () {
-      self.eventIndex++;
       self.visible = false;
-      self.showNext(); /* chiếu sự kiện tiếp theo */
+      self.eventIndex++;
+      self.showNext();
     }, sec * 1000);
   },
 
@@ -167,7 +165,7 @@ var EventCards = {
     var el = document.getElementById('event-overlay');
     if (el) {
       el.classList.remove('show');
-      el.innerHTML = ''; /* xóa iframe để dừng load */
+      setTimeout(function () { el.innerHTML = ''; }, 500);
     }
     this.visible = false;
   },
@@ -179,7 +177,6 @@ var EventCards = {
     var frameUrl = this.buildFrameUrl(ev);
     el.className = 'event-overlay show';
 
-    /* iframe chiếm toàn bộ overlay */
     el.innerHTML =
       '<iframe' +
         ' src="' + frameUrl + '"' +
