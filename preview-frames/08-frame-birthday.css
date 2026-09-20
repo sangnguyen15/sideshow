@@ -6,7 +6,6 @@ html, body {
   font-family: 'Be Vietnam Pro', system-ui, sans-serif;
 }
 
-/* ── Stage nền ngoài card ── */
 .stage {
   width: 100vw;
   height: 100vh;
@@ -20,7 +19,6 @@ html, body {
   padding: 1.2vmin;
 }
 
-/* ── Card chính 16:9 ── */
 .card {
   position: relative;
   width: min(98vw, calc(97vh * 16 / 9));
@@ -30,7 +28,6 @@ html, body {
   overflow: hidden;
 }
 
-/* ── Nền chấm mịn ── */
 .bg-dots {
   position: absolute; inset: 0; z-index: 0; pointer-events: none;
   background-image:
@@ -41,7 +38,6 @@ html, body {
   opacity: 0.3;
 }
 
-/* ── Vầng sáng mềm ── */
 .bg-glow {
   position: absolute; inset: 0; z-index: 0; pointer-events: none;
   background:
@@ -49,13 +45,11 @@ html, body {
     radial-gradient(ellipse at 22% 78%, rgba(175,200,235,0.2),  transparent 38%);
 }
 
-/* ── Họa tiết sinh nhật SVG rải nền ── */
 .bd-motif {
   position: absolute; z-index: 1; pointer-events: none; user-select: none;
   overflow: visible;
 }
 
-/* ── Khung viền 3 lớp ── */
 .border-outer {
   position: absolute; inset: 0; border-radius: 1.2vmin;
   border: 0.6vmin solid #c9a227;
@@ -73,7 +67,6 @@ html, body {
   pointer-events: none; z-index: 8;
 }
 
-/* Góc chéo vàng (giữ 4 góc kim cương) */
 .corner {
   position: absolute; width: 4.8vmin; height: 4.8vmin;
   z-index: 9; pointer-events: none;
@@ -84,7 +77,6 @@ html, body {
 .corner-bl { bottom: 1.5vmin; left: 1.5vmin;  border-width: 0 0 0.42vmin 0.42vmin; }
 .corner-br { bottom: 1.5vmin; right: 1.5vmin; border-width: 0 0.42vmin 0.42vmin 0; }
 
-/* ── Layout 2 cột ── */
 .card-inner {
   display: flex;
   width: 100%; height: 100%;
@@ -94,7 +86,6 @@ html, body {
   align-items: stretch;
 }
 
-/* ── Cột trái: ảnh + decor ── */
 .col-photo {
   width: 45%; height: 100%;
   display: flex; flex-direction: column;
@@ -112,9 +103,12 @@ html, body {
               inset 0 0 0 0.12vmin rgba(255,255,255,0.5);
   z-index: 3;
 }
+
+/* ── Ảnh: cover full khung, căn giữa ── */
 .photo {
   width: 100%; height: 100%;
-  object-fit: cover; object-position: center top;
+  object-fit: cover;
+  object-position: center center;
   display: block; border-radius: 0.5vmin;
   border: 0.3vmin solid #fff;
 }
@@ -133,7 +127,6 @@ html, body {
 .dec.flower-l { width: 27%; max-width: 15vmin; margin-right: -3.5%; margin-bottom: 4%; z-index: 2; filter: drop-shadow(0 0.2vmin 0.35vmin rgba(0,0,0,0.13)); }
 .dec.flower-r { width: 25%; max-width: 14vmin; margin-left: -3.5%;  margin-bottom: 6%; z-index: 2; filter: drop-shadow(0 0.2vmin 0.35vmin rgba(0,0,0,0.13)); }
 
-/* ── Cột phải: nội dung chữ ── */
 .col-text {
   width: 55%; height: 100%;
   display: flex; flex-direction: column;
@@ -143,11 +136,9 @@ html, body {
   gap: 0;
   min-width: 0;
   position: relative; z-index: 3;
-  /* KHÔNG overflow:hidden để Dancing Script không bị cắt */
   overflow: visible;
 }
 
-/* "Chúc mừng sinh nhật" – Be Vietnam Pro, navy đậm */
 .line1 {
   font-family: 'Be Vietnam Pro', sans-serif;
   font-size: clamp(22px, 4.4vmin, 46px);
@@ -155,10 +146,8 @@ html, body {
   letter-spacing: 0.025em;
   line-height: 1.15;
   color: #2c3a55;
-  /* Không dùng gradient clip để tránh bị cắt cạnh */
 }
 
-/* Đường kẻ phân cách vàng */
 .divider {
   display: flex; align-items: center;
   width: 80%; gap: 1.1vmin;
@@ -175,7 +164,6 @@ html, body {
   flex-shrink: 0;
 }
 
-/* Tên – Playfair Display, gradient vàng-nâu ấm */
 .name {
   font-family: 'Playfair Display', Georgia, serif;
   font-size: clamp(40px, 8.8vmin, 92px);
@@ -189,20 +177,18 @@ html, body {
   flex-shrink: 0;
 }
 
-/* ── "Lần thứ" – Dancing Script, rose-mauve ── */
 .count-label {
   font-family: 'Dancing Script', cursive;
   font-size: clamp(30px, 5.8vmin, 60px);
   font-weight: 600;
   letter-spacing: 0.01em;
-  line-height: 1.35;          /* thêm line-height để ascender có đủ chỗ */
-  padding: 0.2em 0.5em;       /* đệm ngang/dọc, không bị clip */
-  color: #9e6070;             /* màu đặc – tránh gradient clip cắt chữ nghiêng */
+  line-height: 1.35;
+  padding: 0.2em 0.5em;
+  color: #9e6070;
   flex-shrink: 0;
-  display: inline-block;      /* để padding có hiệu lực */
+  display: inline-block;
 }
 
-/* Số N – Cormorant Garamond, tabular lining, vàng */
 .count-num {
   font-family: 'Cormorant Garamond', Georgia, serif;
   font-size: clamp(82px, 20vmin, 182px);
@@ -220,10 +206,10 @@ html, body {
   overflow: visible;
 }
 
-/* Ngày – Be Vietnam Pro, slate */
+/* ── Ngày tháng – tăng kích thước ── */
 .range {
   font-family: 'Be Vietnam Pro', sans-serif;
-  font-size: clamp(15px, 2.6vmin, 28px);
+  font-size: clamp(18px, 3.2vmin, 34px);   /* tăng từ 2.6vmin lên 3.2vmin */
   font-weight: 600;
   color: #4a4a5a;
   letter-spacing: 0.04em;

@@ -6,7 +6,6 @@ html, body {
   font-family: 'Be Vietnam Pro', system-ui, sans-serif;
 }
 
-/* ── Stage nền ngoài card: ivory-gold ── */
 .stage {
   width: 100vw;
   height: 100vh;
@@ -20,7 +19,6 @@ html, body {
   padding: 1.2vmin;
 }
 
-/* ── Card chính 16:9 – nền trắng ivory thuần ── */
 .card {
   position: relative;
   width: min(98vw, calc(97vh * 16 / 9));
@@ -30,7 +28,6 @@ html, body {
   overflow: hidden;
 }
 
-/* ── Nền chấm vàng mịn ── */
 .bg-dots {
   position: absolute; inset: 0; z-index: 0; pointer-events: none;
   background-image:
@@ -41,7 +38,6 @@ html, body {
   opacity: 0.28;
 }
 
-/* ── Vầng sáng gold mềm ── */
 .bg-glow {
   position: absolute; inset: 0; z-index: 0; pointer-events: none;
   background:
@@ -49,13 +45,11 @@ html, body {
     radial-gradient(ellipse at 25% 75%, rgba(220,200,140,0.2),  transparent 38%);
 }
 
-/* ── Slot họa tiết SVG (class dùng chung) ── */
 .wd-motif {
   position: absolute; z-index: 1; pointer-events: none;
   user-select: none; overflow: visible;
 }
 
-/* ── Khung viền 3 lớp gold ── */
 .border-outer {
   position: absolute; inset: 0; border-radius: 1.2vmin;
   border: 0.6vmin solid #c9a227;
@@ -75,7 +69,6 @@ html, body {
   pointer-events: none; z-index: 8;
 }
 
-/* ── Góc chéo vàng 4 góc ── */
 .corner {
   position: absolute; width: 4.8vmin; height: 4.8vmin;
   z-index: 9; pointer-events: none;
@@ -86,7 +79,6 @@ html, body {
 .corner-bl { bottom: 1.5vmin; left: 1.5vmin;  border-width: 0 0 0.42vmin 0.42vmin; }
 .corner-br { bottom: 1.5vmin; right: 1.5vmin; border-width: 0 0.42vmin 0.42vmin 0; }
 
-/* ── Layout 2 cột (bám birthday 45/55) ── */
 .card-inner {
   display: flex;
   width: 100%; height: 100%;
@@ -96,7 +88,6 @@ html, body {
   align-items: stretch;
 }
 
-/* ── Cột trái: ảnh + decor SVG ── */
 .col-photo {
   width: 45%; height: 100%;
   display: flex; flex-direction: column;
@@ -115,14 +106,16 @@ html, body {
     inset 0 0 0 0.12vmin rgba(255,255,255,0.5);
   z-index: 3;
 }
+
+/* ── Ảnh: cover full khung, căn giữa – không bị zoom kỳ lạ ── */
 .photo {
   width: 100%; height: 100%;
-  object-fit: cover; object-position: center top;
+  object-fit: cover;
+  object-position: center center;
   display: block; border-radius: 0.5vmin;
   border: 0.3vmin solid #fff;
 }
 
-/* Decor SVG dưới ảnh: nhẫn + hoa hồng */
 .decor-cluster {
   position: absolute; left: 0; bottom: 0.2vmin;
   width: 100%; height: 28%;
@@ -130,138 +123,7 @@ html, body {
   pointer-events: none; z-index: 4;
   gap: 0.8vmin;
 }
-.svg-rings {
-  width: 42%; max-width: 24vmin;
-  filter: drop-shadow(0 0.4vmin 0.6vmin rgba(60,40,5,0.22));
-}
-.svg-rose {
-  width: 18%; max-width: 10vmin;
-  margin-bottom: 3%;
-  filter: drop-shadow(0 0.2vmin 0.35vmin rgba(0,0,0,0.15));
-}
-.svg-rose-r {
-  width: 16%; max-width: 9vmin;
-  margin-bottom: 5%;
-  transform: scaleX(-1);
-  filter: drop-shadow(0 0.2vmin 0.35vmin rgba(0,0,0,0.15));
-}
 
-/* ── Cột phải: nội dung ── */
-.col-text {
-  width: 55%; height: 100%;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  text-align: center;
-  padding: 0.5vmin 3vmin 1.5vmin 0.5vmin;
-  gap: 0;
-  min-width: 0;
-  position: relative; z-index: 3;
-  overflow: visible; /* Dancing Script không bị cắt */
-}
-
-/* "Kỷ niệm" – Be Vietnam Pro, gold đậm – TO + ĐẬM hơn */
-.line1 {
-  font-family: 'Be Vietnam Pro', sans-serif;
-  font-size: clamp(28px, 5.6vmin, 58px);
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  line-height: 1.1;
-  text-transform: uppercase;
-  color: #7a5c08;
-}
-
-/* Divider gold */
-.divider {
-  display: flex; align-items: center;
-  width: 80%; gap: 1.1vmin;
-  margin: 1.4vmin 0 1.2vmin;
-  flex-shrink: 0;
-}
-.div-line {
-  flex: 1; height: 0.28vmin;
-  background: linear-gradient(90deg, transparent, #c9a227, #e8c85a, #c9a227, transparent);
-}
-.div-diamond {
-  color: #c9a227;
-  font-size: 1.4vmin;
-  flex-shrink: 0;
-  line-height: 1;
-}
-
-/* Số N năm – Cormorant Garamond lining, gold – TO + ĐẬM hơn */
-.count-num {
-  font-family: 'Cormorant Garamond', Georgia, serif;
-  font-size: clamp(96px, 24vmin, 210px);
-  font-weight: 800;
-  line-height: 0.92;
-  letter-spacing: 0.02em;
-  font-variant-numeric: lining-nums tabular-nums;
-  font-feature-settings: "lnum" 1, "tnum" 1;
-  background: linear-gradient(175deg,
-    #5a4a28 0%, #8a7020 22%, #c9a227 52%, #dbb840 72%, #6b5810 100%);
-  -webkit-background-clip: text; background-clip: text;
-  color: transparent; -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 0.15vmin 0.05vmin rgba(0,0,0,0.1));
-  flex-shrink: 0;
-  display: block;
-  overflow: visible;
-}
-
-/* "Năm ngày cưới" – Dancing Script, gold ấm */
-.count-label {
-  font-family: 'Dancing Script', cursive;
-  font-size: clamp(28px, 5.4vmin, 56px);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  line-height: 1.35;
-  padding: 0.2em 0.5em;
-  color: #a07828;         /* gold đậm – màu đặc, tránh gradient clip */
-  flex-shrink: 0;
-  display: inline-block;
-}
-
-/* Tên đôi – Playfair Display italic, gold – TO hơn + chừa chỗ dấu nặng */
-.pair {
-  font-family: 'Playfair Display', Georgia, serif;
-  font-size: clamp(44px, 10vmin, 104px);
-  font-weight: 800;
-  font-style: italic;
-  line-height: 1.25;           /* tăng line-height để descender/dấu nặng không bị clip */
-  padding-bottom: 0.18em;      /* chừa chỗ cho dấu chấm bên dưới (Mẹ, Bé, ...) */
-  max-width: 100%; word-break: break-word;
-  background: linear-gradient(155deg,
-    #5c4a28 0%, #8a6914 30%, #c9a835 58%, #6b5420 100%);
-  -webkit-background-clip: text; background-clip: text;
-  color: transparent; -webkit-text-fill-color: transparent;
-  margin-top: 0.6vmin;
-  flex-shrink: 0;
-  overflow: visible;
-  display: block;              /* block để padding-bottom có tác dụng với gradient-clip */
-}
-
-/* Tim ♥ giữa tên đôi */
-.heart {
-  color: #c9a227;
-  -webkit-text-fill-color: #c9a227;
-  background: none;
-  -webkit-background-clip: initial;
-  background-clip: initial;
-  padding: 0 0.15em;
-  font-style: normal;
-}
-
-/* Ngày – Be Vietnam Pro, warm slate */
-.range {
-  font-family: 'Be Vietnam Pro', sans-serif;
-  font-size: clamp(14px, 2.5vmin, 26px);
-  font-weight: 600;
-  color: #6a5c40;
-  letter-spacing: 0.04em;
-  margin-top: 1.6vmin;
-  flex-shrink: 0;
-}
-
-/* ── Ảnh PNG từ assets/ – cụm decor dưới ảnh ── */
 .dec {
   border: none !important; box-shadow: none !important;
   background: transparent !important; object-fit: contain;
@@ -281,12 +143,124 @@ html, body {
   width: 25%; max-width: 14vmin;
   margin-left: -3%;
   margin-bottom: 6%;
-  /* lật ngang để đối xứng với rose-l */
   transform: scaleX(-1);
   filter: drop-shadow(0 0.25vmin 0.4vmin rgba(60,40,5,0.18));
 }
 
-/* ── Ảnh rải nền (phương án B) ── */
+.col-text {
+  width: 55%; height: 100%;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center;
+  padding: 0.5vmin 3vmin 1.5vmin 0.5vmin;
+  gap: 0;
+  min-width: 0;
+  position: relative; z-index: 3;
+  overflow: visible;
+}
+
+.line1 {
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-size: clamp(28px, 5.6vmin, 58px);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+  text-transform: uppercase;
+  color: #7a5c08;
+}
+
+.divider {
+  display: flex; align-items: center;
+  width: 80%; gap: 1.1vmin;
+  margin: 1.4vmin 0 1.2vmin;
+  flex-shrink: 0;
+}
+.div-line {
+  flex: 1; height: 0.28vmin;
+  background: linear-gradient(90deg, transparent, #c9a227, #e8c85a, #c9a227, transparent);
+}
+.div-diamond {
+  color: #c9a227;
+  font-size: 1.4vmin;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.count-num {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(96px, 24vmin, 210px);
+  font-weight: 800;
+  line-height: 0.92;
+  letter-spacing: 0.02em;
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: "lnum" 1, "tnum" 1;
+  background: linear-gradient(175deg,
+    #5a4a28 0%, #8a7020 22%, #c9a227 52%, #dbb840 72%, #6b5810 100%);
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0.15vmin 0.05vmin rgba(0,0,0,0.1));
+  flex-shrink: 0;
+  display: block;
+  overflow: visible;
+}
+
+.count-label {
+  font-family: 'Dancing Script', cursive;
+  font-size: clamp(28px, 5.4vmin, 56px);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.35;
+  padding: 0.2em 0.5em;
+  color: #a07828;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+/*
+ * ── Tên đôi – fix xuống dòng ──
+ * Dùng nowrap + font nhỏ hơn + scale tự động theo container
+ */
+.pair {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(28px, 6vmin, 68px);   /* giảm từ 10vmin xuống 6vmin */
+  font-weight: 800;
+  font-style: italic;
+  line-height: 1.2;
+  white-space: nowrap;                    /* không xuống dòng */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  background: linear-gradient(155deg,
+    #5c4a28 0%, #8a6914 30%, #c9a835 58%, #6b5420 100%);
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent; -webkit-text-fill-color: transparent;
+  margin-top: 0.6vmin;
+  flex-shrink: 0;
+  display: block;
+  padding-bottom: 0.18em;
+}
+
+.heart {
+  color: #c9a227;
+  -webkit-text-fill-color: #c9a227;
+  background: none;
+  -webkit-background-clip: initial;
+  background-clip: initial;
+  padding: 0 0.15em;
+  font-style: normal;
+}
+
+/* ── Ngày tháng – tăng kích thước ── */
+.range {
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-size: clamp(18px, 3.2vmin, 34px);   /* tăng từ 2.5vmin lên 3.2vmin */
+  font-weight: 600;
+  color: #6a5c40;
+  letter-spacing: 0.04em;
+  margin-top: 1.6vmin;
+  flex-shrink: 0;
+}
+
 .bg-decor {
   position: absolute;
   z-index: 1;
@@ -294,27 +268,15 @@ html, body {
   user-select: none;
   object-fit: contain;
 }
-/*
- * Góc dưới trái – hoa hồng lớn, mờ nhẹ, không che nội dung.
- * Nằm sau cột ảnh, chỉ thấy một phần.
- */
 .bg-rose-l {
-  left: -2%;
-  bottom: -1%;
-  width: 22%;
-  max-width: 20vmin;
+  left: -2%; bottom: -1%;
+  width: 22%; max-width: 20vmin;
   opacity: 0.18;
   filter: drop-shadow(0 0.3vmin 0.5vmin rgba(60,40,5,0.1));
 }
-/*
- * Góc trên phải – hoa lật ngang, chồng lên sau nhóm SVG motif,
- * opacity thấp hơn để không tranh với text.
- */
 .bg-rose-r {
-  right: -1%;
-  top: 2%;
-  width: 18%;
-  max-width: 16vmin;
+  right: -1%; top: 2%;
+  width: 18%; max-width: 16vmin;
   opacity: 0.14;
   transform: scaleX(-1) rotate(-15deg);
   filter: drop-shadow(0 0.3vmin 0.5vmin rgba(60,40,5,0.1));
