@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>08 – Frame Sinh nhật</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700;800&family=Cormorant+Garamond:wght@600;700&family=Dancing+Script:wght@600;700&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="08-frame-birthday.css" />
+</head>
+<body>
+<div class="stage">
+  <div class="card">
+
+    <!-- ░░ Nền chấm + glow ░░ -->
+    <div class="bg-dots"  aria-hidden="true"></div>
+    <div class="bg-glow"  aria-hidden="true"></div>
+
+    <!-- ░░ Họa tiết sinh nhật rải nền (SVG, z-index 1) ░░
+         Tập trung ở 4 vùng trống: góc trên-phải, dải giữa-phải,
+         góc dưới-phải, và góc trên-trái phía phải ảnh.
+         Dùng 3 motif: nến 🕯, bóng bay, ngôi sao nhỏ.
+         Opacity thấp (0.18-0.28) để không cạnh tranh với nội dung. -->
+
+    <!-- Nhóm A – góc trên phải (vùng trống rõ nhất) -->
+    <svg class="bd-motif" style="right:2%;top:4%;width:22%;height:28%;opacity:0.22" viewBox="0 0 220 280" aria-hidden="true">
+      <!-- bóng bay hồng -->
+      <ellipse cx="30" cy="42" rx="18" ry="22" fill="#e8829a"/>
+      <line x1="30" y1="64" x2="28" y2="100" stroke="#e8829a" stroke-width="1.2"/>
+      <path d="M30 64 Q26 72 30 74 Q34 72 30 64" fill="#c96080"/>
+      <!-- bóng bay vàng -->
+      <ellipse cx="72" cy="30" rx="16" ry="20" fill="#e8c456"/>
+      <line x1="72" y1="50" x2="70" y2="88" stroke="#e8c456" stroke-width="1.2"/>
+      <path d="M72 50 Q68 58 72 60 Q76 58 72 50" fill="#c8a030"/>
+      <!-- bóng bay xanh nhạt -->
+      <ellipse cx="114" cy="50" rx="15" ry="19" fill="#7ec8e0"/>
+      <line x1="114" y1="69" x2="112" y2="106" stroke="#7ec8e0" stroke-width="1.2"/>
+      <path d="M114 69 Q110 77 114 79 Q118 77 114 69" fill="#50a8c8"/>
+      <!-- sao nhỏ rải -->
+      <polygon points="160,18 162,26 170,26 164,31 166,39 160,34 154,39 156,31 150,26 158,26" fill="#e8c456" opacity=".7"/>
+      <polygon points="190,60 192,66 198,66 193,70 195,76 190,72 185,76 187,70 182,66 188,66" fill="#e8829a" opacity=".6"/>
+      <polygon points="50,120 51,125 56,125 52,128 54,133 50,130 46,133 48,128 44,125 49,125" fill="#c9a227" opacity=".55"/>
+      <polygon points="140,100 141,104 145,104 142,107 143,111 140,108 137,111 138,107 135,104 139,104" fill="#7ec8e0" opacity=".5"/>
+      <!-- dải confetti nhỏ -->
+      <rect x="88"  y="12" width="5" height="9"  rx="2" fill="#e8829a" opacity=".6" transform="rotate(20 90 16)"/>
+      <rect x="170" y="38" width="4" height="8"  rx="2" fill="#7ec8e0" opacity=".5" transform="rotate(-15 172 42)"/>
+      <rect x="20"  y="90" width="5" height="8"  rx="2" fill="#e8c456" opacity=".55" transform="rotate(35 22 94)"/>
+      <rect x="130" y="140" width="4" height="7" rx="2" fill="#e8829a" opacity=".4" transform="rotate(-25 132 143)"/>
+      <circle cx="200" cy="140" r="3" fill="#c9a227" opacity=".45"/>
+      <circle cx="10"  cy="160" r="2.5" fill="#e8829a" opacity=".4"/>
+      <circle cx="95"  cy="200" r="2"   fill="#7ec8e0" opacity=".38"/>
+    </svg>
+
+    <!-- Nhóm B – giữa phải (vùng ngang hàng số N) -->
+    <svg class="bd-motif" style="right:1%;top:36%;width:10%;height:30%;opacity:0.2" viewBox="0 0 100 300" aria-hidden="true">
+      <!-- nến nhỏ -->
+      <rect x="40" y="60" width="10" height="28" rx="2" fill="#f0e0b0"/>
+      <ellipse cx="45" cy="58" rx="5" ry="8" fill="#ffe08a"/>
+      <ellipse cx="45" cy="54" rx="3" ry="5" fill="#ff9955" opacity=".9"/>
+      <ellipse cx="45" cy="51" rx="1.5" ry="3" fill="#fff" opacity=".7"/>
+      <!-- nến thứ 2 -->
+      <rect x="62" y="130" width="9" height="24" rx="2" fill="#f0d0d8"/>
+      <ellipse cx="66" cy="128" rx="4.5" ry="7" fill="#ffe08a"/>
+      <ellipse cx="66" cy="124" rx="2.8" ry="4.5" fill="#ff9955" opacity=".9"/>
+      <ellipse cx="66" cy="121" rx="1.4" ry="2.8" fill="#fff" opacity=".7"/>
+      <!-- tim nhỏ -->
+      <path d="M30 210 Q30 202 38 202 Q42 202 44 207 Q46 202 50 202 Q58 202 58 210 Q58 218 44 228 Q30 218 30 210Z" fill="#e8829a" opacity=".7"/>
+      <!-- sao -->
+      <polygon points="20,260 22,267 29,267 23,271 25,278 20,274 15,278 17,271 11,267 18,267" fill="#c9a227" opacity=".6"/>
+    </svg>
+
+    <!-- Nhóm C – góc dưới phải -->
+    <svg class="bd-motif" style="right:1.5%;bottom:1%;width:20%;height:22%;opacity:0.2" viewBox="0 0 200 220" aria-hidden="true">
+      <!-- bóng bay -->
+      <ellipse cx="50"  cy="60" rx="16" ry="20" fill="#c9a227"/>
+      <line x1="50" y1="80" x2="48" y2="115" stroke="#c9a227" stroke-width="1.2"/>
+      <path d="M50 80 Q46 88 50 90 Q54 88 50 80" fill="#a07820"/>
+      <ellipse cx="100" cy="45" rx="14" ry="18" fill="#e8829a"/>
+      <line x1="100" y1="63" x2="98" y2="98"  stroke="#e8829a" stroke-width="1.2"/>
+      <path d="M100 63 Q96 71 100 73 Q104 71 100 63" fill="#c06070"/>
+      <ellipse cx="150" cy="65" rx="13" ry="17" fill="#7ec8e0"/>
+      <line x1="150" y1="82" x2="148" y2="118" stroke="#7ec8e0" stroke-width="1.2"/>
+      <path d="M150 82 Q146 90 150 92 Q154 90 150 82" fill="#50a0c0"/>
+      <!-- confetti -->
+      <rect x="18"  y="130" width="5" height="8" rx="2" fill="#e8c456" opacity=".55" transform="rotate(30 20 134)"/>
+      <rect x="170" y="140" width="4" height="7" rx="2" fill="#e8829a" opacity=".5" transform="rotate(-20 172 143)"/>
+      <circle cx="80"  cy="160" r="3" fill="#c9a227" opacity=".5"/>
+      <circle cx="130" cy="180" r="2.5" fill="#e8829a" opacity=".45"/>
+      <polygon points="190,100 192,106 198,106 193,110 195,116 190,112 185,116 187,110 182,106 188,106" fill="#c9a227" opacity=".55"/>
+    </svg>
+
+    <!-- Nhóm D – góc trên trái (phía trên ảnh, nhỏ) -->
+    <svg class="bd-motif" style="left:1.5%;top:2%;width:8%;height:18%;opacity:0.18" viewBox="0 0 80 180" aria-hidden="true">
+      <polygon points="40,10 42,18 50,18 44,23 46,31 40,26 34,31 36,23 30,18 38,18" fill="#c9a227"/>
+      <polygon points="15,60 17,66 23,66 18,70 20,76 15,72 10,76 12,70  7,66 13,66" fill="#e8829a" opacity=".75"/>
+      <rect x="58" y="90" width="5" height="9" rx="2" fill="#7ec8e0" opacity=".6" transform="rotate(20 60 94)"/>
+      <circle cx="30" cy="130" r="3" fill="#c9a227" opacity=".5"/>
+      <path d="M50 155 Q50 149 56 149 Q59 149 60 153 Q61 149 64 149 Q70 149 70 155 Q70 161 60 168 Q50 161 50 155Z" fill="#e8829a" opacity=".6"/>
+    </svg>
+
+    <!-- ░░ Khung viền 3 lớp ░░ -->
+    <div class="border-outer"></div>
+    <div class="border-mid"></div>
+    <div class="border-inner"></div>
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div>
+    <div class="corner corner-br"></div>
+
+    <!-- ░░ Nội dung chính ░░ -->
+    <div class="card-inner">
+
+      <!-- Cột trái: ảnh + bánh/hoa -->
+      <div class="col-photo">
+        <div class="photo-frame">
+          <img class="photo" id="ev-photo"
+            src="https://images.unsplash.com/photo-1511895426328-dc8714191300?w=1000&q=80"
+            alt="Ảnh sự kiện" />
+        </div>
+        <div class="decor-cluster" aria-hidden="true">
+          <img class="dec flower-l" src="assets/decor-flower-a.png" alt="" />
+          <img class="dec cake"     src="assets/decor-cake.png"     alt="" />
+          <img class="dec flower-r" src="assets/decor-flower-b.png" alt="" />
+        </div>
+      </div>
+
+      <!-- Cột phải: văn bản -->
+      <div class="col-text">
+        <p class="line1">Chúc mừng sinh nhật</p>
+
+        <div class="divider" aria-hidden="true">
+          <span class="div-line"></span>
+          <span class="div-dot"></span>
+          <span class="div-line"></span>
+        </div>
+
+        <p class="name"        id="ev-name">An Nhiên</p>
+        <p class="count-label">Lần thứ</p>
+        <p class="count-num"   id="ev-n">26</p>
+        <p class="range"       id="ev-range">18/09/2000 – 18/09/2026</p>
+      </div>
+
+    </div><!-- /.card-inner -->
+  </div><!-- /.card -->
+</div><!-- /.stage -->
+
+<script>
+  /*
+   * ─────────────────────────────────────────────
+   *  DATA INJECTION – GAS thay thế block này:
+   *
+   *  var data = {
+   *    day:        <?= day ?>,          // số nguyên 1-31   (từ cột ngày Sheet)
+   *    month:      <?= month ?>,        // số nguyên 1-12   (từ cột tháng Sheet)
+   *    year:       <?= year ?>,         // số nguyên 4 chữ  (từ cột năm Sheet)
+   *    title_name: '<?= name ?>',       // chuỗi tên người
+   *    photo_url:  '<?= photoUrl ?>'    // URL Drive ảnh (base64 hoặc lh3.google...)
+   *  };
+   *
+   *  Khi chạy local/preview dùng giá trị mặc định bên dưới:
+   * ─────────────────────────────────────────────
+   */
+  var data = {
+    day:        18,
+    month:      9,
+    year:       2000,
+    title_name: 'An Nhiên',
+    photo_url:  'https://images.unsplash.com/photo-1511895426328-dc8714191300?w=1000&q=80'
+  };
+
+  /* ── Helpers ── */
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+  function parseSheetDate(d, m, y) {
+    /*
+     * Nhận 3 số từ Sheet (có thể là string nếu GAS truyền text).
+     * Trả về { ok, day, month, year, dateObj } hoặc { ok: false, msg }
+     */
+    var dd = parseInt(d, 10);
+    var mm = parseInt(m, 10);
+    var yy = parseInt(y, 10);
+
+    if (isNaN(dd) || isNaN(mm) || isNaN(yy))
+      return { ok: false, msg: 'Ngày/tháng/năm không hợp lệ (không phải số)' };
+    if (mm < 1 || mm > 12)
+      return { ok: false, msg: 'Tháng phải từ 1 đến 12' };
+    if (dd < 1 || dd > 31)
+      return { ok: false, msg: 'Ngày phải từ 1 đến 31' };
+    if (yy < 1900 || yy > 2100)
+      return { ok: false, msg: 'Năm sinh không hợp lý (' + yy + ')' };
+
+    /* Kiểm tra ngày thật (VD: 29/02 năm thường) */
+    var probe = new Date(yy, mm - 1, dd);
+    if (probe.getMonth() !== mm - 1 || probe.getDate() !== dd)
+      return { ok: false, msg: pad(dd) + '/' + pad(mm) + '/' + yy + ' không tồn tại' };
+
+    return { ok: true, day: dd, month: mm, year: yy, dateObj: probe };
+  }
+
+  /* ── Tính số lần & render ── */
+  (function render() {
+    var result = parseSheetDate(data.day, data.month, data.year);
+
+    if (!result.ok) {
+      /* Hiển thị lỗi trên thiệp thay vì vỡ layout */
+      document.getElementById('ev-name').textContent  = '⚠ Lỗi dữ liệu';
+      document.getElementById('ev-n').textContent     = '--';
+      document.getElementById('ev-range').textContent = result.msg;
+      return;
+    }
+
+    var now = new Date();
+    var currentYear = now.getFullYear();
+
+    /*
+     * N = số lần sinh nhật tính đến năm nay.
+     * Thiệp chiếu ĐÚNG NGÀY sinh nhật → dùng chênh lệch năm.
+     */
+    var N = Math.max(0, currentYear - result.year);
+
+    /*
+     * Dòng range: ngày sinh – ngày sinh nhật năm nay
+     * (không dùng "hôm nay" vì chiếu đúng ngày thì khớp,
+     *  nhưng nếu chiếu sớm 1 ngày thì sẽ sai → dùng cố định ngày sinh nhật)
+     */
+    var birthStr   = pad(result.day) + '/' + pad(result.month) + '/' + result.year;
+    var todayBirth = pad(result.day) + '/' + pad(result.month) + '/' + currentYear;
+
+    /* Ảnh (nếu GAS truyền URL Drive) */
+    if (data.photo_url && data.photo_url.trim() !== '') {
+      document.getElementById('ev-photo').src = data.photo_url;
+    }
+
+    document.getElementById('ev-name').textContent  = data.title_name || '---';
+    document.getElementById('ev-n').textContent     = N;
+    document.getElementById('ev-range').textContent = birthStr + ' – ' + todayBirth;
+  })();
+</script>
+</body>
+</html>

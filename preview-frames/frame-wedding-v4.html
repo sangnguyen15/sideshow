@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Frame Kỷ niệm Ngày cưới</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700;800&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Dancing+Script:wght@600;700&family=Playfair+Display:ital,wght@1,700;1,800;1,900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="frame-wedding-v4.css" />
+</head>
+<body>
+<div class="stage">
+  <div class="card">
+
+    <!-- ░░ Nền chấm + glow ░░ -->
+    <div class="bg-dots" aria-hidden="true"></div>
+    <div class="bg-glow" aria-hidden="true"></div>
+
+    <!-- ░░ Ảnh trang trí rải nền (assets/) – z-index 1, pointer-events none ░░ -->
+    <!--
+      decor-rose-l.png / decor-rose-r.png: hoa hồng góc nền, nhỏ, mờ nhẹ
+      Vị trí: góc dưới trái (hoa-l) và góc trên phải (hoa-r phía sau SVG motif)
+      Khi chưa có file, thẻ img ẩn tự động vì src lỗi không ảnh hưởng layout.
+    -->
+    <img class="bg-decor bg-rose-l" src="assets/decor-rose-l.png"
+         alt="" aria-hidden="true" onerror="this.style.display='none'" />
+    <img class="bg-decor bg-rose-r" src="assets/decor-rose-r.png"
+         alt="" aria-hidden="true" onerror="this.style.display='none'" />
+
+    <!-- ░░ Họa tiết nền SVG – chủ đề cưới: hoa, nhẫn, tim, cánh ░░ -->
+
+    <!-- Nhóm A – góc trên phải: cánh hoa hồng rụng + nụ + dây leo -->
+    <svg class="wd-motif" style="right:1.5%;top:3%;width:24%;height:30%;opacity:0.18" viewBox="0 0 240 300" aria-hidden="true">
+      <!-- Dây leo mảnh -->
+      <path d="M220 10 Q200 40 210 80 Q195 120 205 160 Q185 200 195 240" stroke="#c9a227" stroke-width="1.2" fill="none" opacity=".6"/>
+      <!-- Cánh hoa hồng rụng lớn -->
+      <path d="M160 30 Q175 18 185 28 Q188 42 170 48 Q155 42 160 30Z" fill="#e8d8b0" opacity=".8"/>
+      <path d="M130 55 Q148 44 155 56 Q155 70 138 73 Q124 66 130 55Z" fill="#dfc99a" opacity=".75"/>
+      <path d="M185 75 Q198 65 204 76 Q203 88 190 89 Q178 83 185 75Z" fill="#e8d8b0" opacity=".7"/>
+      <path d="M100 90 Q115 80 120 92 Q119 104 105 105 Q93 98 100 90Z" fill="#cdb880" opacity=".65"/>
+      <path d="M210 110 Q220 102 224 112 Q222 122 212 122 Q203 116 210 110Z" fill="#dfc99a" opacity=".6"/>
+      <path d="M75 130 Q88 122 92 132 Q90 142 79 142 Q69 136 75 130Z" fill="#c9a227" opacity=".5"/>
+      <path d="M155 145 Q167 138 170 148 Q168 157 158 157 Q149 152 155 145Z" fill="#e8d8b0" opacity=".6"/>
+      <path d="M50 170 Q60 163 63 172 Q61 181 52 180 Q44 175 50 170Z" fill="#dfc99a" opacity=".5"/>
+      <path d="M195 185 Q203 179 206 187 Q204 195 196 194 Q189 190 195 185Z" fill="#c9a227" opacity=".48"/>
+      <!-- Nụ nhỏ trên dây -->
+      <ellipse cx="208" cy="68"  rx="5" ry="7"  fill="#e8d8b0" opacity=".65"/>
+      <ellipse cx="192" cy="128" rx="4" ry="6"  fill="#dfc99a" opacity=".58"/>
+      <ellipse cx="198" cy="198" rx="4" ry="5.5" fill="#e8d8b0" opacity=".52"/>
+      <!-- Lá nhỏ -->
+      <path d="M213 72 Q218 68 222 72 Q218 78 213 72Z" fill="#b8a050" opacity=".5"/>
+      <path d="M195 132 Q199 128 203 132 Q199 138 195 132Z" fill="#b8a050" opacity=".45"/>
+      <!-- Tim nhỏ rải -->
+      <path d="M55 50 Q55 44 61 44 Q64 44 65 47 Q66 44 69 44 Q75 44 75 50 Q75 56 65 62 Q55 56 55 50Z" fill="#c9a227" opacity=".4"/>
+      <path d="M15 100 Q15 95 20 95 Q22 95 23 98 Q24 95 26 95 Q31 95 31 100 Q31 105 23 110 Q15 105 15 100Z" fill="#dfc99a" opacity=".38"/>
+      <path d="M170 220 Q170 215 175 215 Q177 215 178 218 Q179 215 181 215 Q186 215 186 220 Q186 225 178 230 Q170 225 170 220Z" fill="#c9a227" opacity=".35"/>
+      <!-- Nhẫn nhỏ trang trí -->
+      <circle cx="30" cy="55"  r="8"  fill="none" stroke="#c9a227" stroke-width="1.8" opacity=".42"/>
+      <circle cx="30" cy="55"  r="8"  fill="none" stroke="#fff8dc" stroke-width="0.6" opacity=".3"/>
+      <circle cx="120" cy="200" r="7" fill="none" stroke="#dfc99a" stroke-width="1.6" opacity=".38"/>
+      <circle cx="120" cy="200" r="7" fill="none" stroke="#fff8dc" stroke-width="0.5" opacity=".28"/>
+      <!-- Sao nhỏ -->
+      <polygon points="90,25 91.5,30 97,30 92.5,33 94,38 90,35 86,38 87.5,33 83,30 88.5,30" fill="#c9a227" opacity=".45"/>
+      <polygon points="230,55 231,59 235,59 232,61 233,65 230,63 227,65 228,61 225,59 229,59" fill="#dfc99a" opacity=".4"/>
+    </svg>
+
+    <!-- Nhóm B – dải giữa phải: tim + nhẫn nhỏ + nốt nhạc -->
+    <svg class="wd-motif" style="right:0.8%;top:32%;width:9%;height:36%;opacity:0.18" viewBox="0 0 90 360" aria-hidden="true">
+      <!-- Tim -->
+      <path d="M28 35 Q28 24 38 24 Q43 24 45 29 Q47 24 52 24 Q62 24 62 35 Q62 46 45 58 Q28 46 28 35Z" fill="#c9a227" opacity=".7"/>
+      <!-- Nhẫn lồng đôi -->
+      <circle cx="45" cy="110" r="16" fill="none" stroke="#c9a227" stroke-width="3.5" opacity=".65"/>
+      <circle cx="45" cy="110" r="16" fill="none" stroke="#fff8dc" stroke-width="1"   opacity=".4"/>
+      <circle cx="58" cy="118" r="14" fill="none" stroke="#dfc99a" stroke-width="3"   opacity=".58"/>
+      <!-- Nốt nhạc ♪ -->
+      <path d="M38 200 L38 230 Q38 238 30 238 Q22 238 22 230 Q22 222 30 222 Q34 222 38 226 L38 210 L58 204 L58 214 L38 220" fill="#c9a227" opacity=".5"/>
+      <!-- Bướm nhỏ -->
+      <path d="M20 285 Q10 275 15 268 Q22 262 30 270 Q38 262 45 268 Q50 275 40 285 Q35 290 30 285 Q25 290 20 285Z" fill="#dfc99a" opacity=".42"/>
+      <path d="M18 290 Q10 300 14 308 Q22 314 30 306 Q38 314 46 308 Q50 300 42 290 Q37 295 30 290 Q23 295 18 290Z" fill="#c9a227" opacity=".38"/>
+      <circle cx="30" cy="288" r="2.5" fill="#8a6810" opacity=".5"/>
+      <line x1="30" y1="290" x2="30" y2="310" stroke="#8a6810" stroke-width="1.2" opacity=".4"/>
+      <!-- Cánh hoa nhỏ -->
+      <path d="M60 180 Q65 172 72 176 Q72 185 65 186 Q59 183 60 180Z" fill="#e8d8b0" opacity=".5"/>
+      <path d="M65 195 Q72 188 78 193 Q77 201 70 202 Q63 198 65 195Z" fill="#dfc99a" opacity=".45"/>
+    </svg>
+
+    <!-- Nhóm C – góc dưới phải: bó hoa + lá + bướm -->
+    <svg class="wd-motif" style="right:1%;bottom:0.8%;width:22%;height:26%;opacity:0.2" viewBox="0 0 220 260" aria-hidden="true">
+      <!-- Cuống hoa -->
+      <path d="M110 260 Q108 230 100 210 Q90 190 95 170" stroke="#a09040" stroke-width="2"   fill="none" opacity=".6"/>
+      <path d="M110 260 Q112 232 120 210 Q130 188 125 165" stroke="#a09040" stroke-width="1.8" fill="none" opacity=".55"/>
+      <path d="M110 260 Q105 235 90 220 Q75 205 78 185"  stroke="#b0a050" stroke-width="1.5" fill="none" opacity=".5"/>
+      <!-- Lá -->
+      <path d="M92 215 Q80 205 78 195 Q88 192 96 202 Q96 210 92 215Z" fill="#a09040" opacity=".5"/>
+      <path d="M125 218 Q137 208 140 198 Q130 195 122 205 Q122 213 125 218Z" fill="#b0a050" opacity=".48"/>
+      <path d="M82 235 Q70 228 70 218 Q80 215 87 225 Q86 232 82 235Z" fill="#a09040" opacity=".45"/>
+      <!-- Hoa hồng chính giữa -->
+      <path d="M110 100 Q110 75 125 72 Q138 72 138 88 Q138 108 110 125 Q82 108 82 88 Q82 72 95 72 Q110 72 110 75Z" fill="#e8d8b0" opacity=".8"/>
+      <path d="M110 110 Q110 90 122 88 Q132 88 132 100 Q132 115 110 126 Q88 115 88 100 Q88 88 98 88 Q110 88 110 90Z" fill="#dfc99a" opacity=".75"/>
+      <path d="M110 118 Q110 104 118 103 Q124 103 124 111 Q124 121 110 128 Q96 121 96 111 Q96 103 102 103 Q110 103 110 104Z" fill="#c9a227" opacity=".7"/>
+      <circle cx="110" cy="115" r="6" fill="#e8c84a" opacity=".65"/>
+      <!-- Hoa phụ trái -->
+      <path d="M75 150 Q75 133 86 131 Q96 131 96 142 Q96 155 75 164 Q55 155 55 142 Q55 131 65 131 Q75 131 75 133Z" fill="#e8d8b0" opacity=".7"/>
+      <circle cx="75" cy="150" r="5" fill="#dfc99a" opacity=".65"/>
+      <!-- Hoa phụ phải -->
+      <path d="M145 145 Q145 130 155 128 Q164 128 164 138 Q164 150 145 158 Q127 150 127 138 Q127 128 136 128 Q145 128 145 130Z" fill="#dfc99a" opacity=".68"/>
+      <circle cx="145" cy="143" r="4.5" fill="#c9a227" opacity=".6"/>
+      <!-- Tim nhỏ -->
+      <path d="M40 80 Q40 72 48 72 Q51 72 52 75 Q53 72 56 72 Q64 72 64 80 Q64 88 52 95 Q40 88 40 80Z" fill="#c9a227" opacity=".45"/>
+      <path d="M165 60 Q165 53 172 53 Q175 53 176 56 Q177 53 180 53 Q187 53 187 60 Q187 67 176 73 Q165 67 165 60Z" fill="#dfc99a" opacity=".42"/>
+      <!-- Nhẫn nhỏ -->
+      <circle cx="38"  cy="185" r="9"  fill="none" stroke="#c9a227" stroke-width="2"   opacity=".4"/>
+      <circle cx="38"  cy="185" r="9"  fill="none" stroke="#fff8dc" stroke-width="0.7" opacity=".28"/>
+      <circle cx="185" cy="100" r="8"  fill="none" stroke="#dfc99a" stroke-width="1.8" opacity=".38"/>
+      <!-- Sao nhỏ -->
+      <polygon points="195,175 196.5,180 202,180 197.5,183 199,188 195,185 191,188 192.5,183 188,180 193.5,180" fill="#c9a227" opacity=".42"/>
+      <polygon points="22,130 23,134 27,134 24,136 25,140 22,138 19,140 20,136 17,134 21,134" fill="#dfc99a" opacity=".38"/>
+    </svg>
+
+    <!-- Nhóm D – góc trên trái: nụ hoa + sao + tim nhỏ -->
+    <svg class="wd-motif" style="left:1%;top:2%;width:9%;height:20%;opacity:0.17" viewBox="0 0 90 200" aria-hidden="true">
+      <!-- Sao -->
+      <polygon points="45,12 47,20 55,20 49,25 51,33 45,28 39,33 41,25 35,20 43,20" fill="#c9a227"/>
+      <!-- Tim -->
+      <path d="M20 75 Q20 66 28 66 Q31 66 32 69 Q33 66 36 66 Q44 66 44 75 Q44 84 32 91 Q20 84 20 75Z" fill="#dfc99a" opacity=".8"/>
+      <!-- Nụ hoa -->
+      <ellipse cx="65" cy="110" rx="7"  ry="10" fill="#e8d8b0" opacity=".7"/>
+      <ellipse cx="65" cy="107" rx="4"  ry="5"  fill="#dfc99a" opacity=".65"/>
+      <!-- Cánh hoa -->
+      <path d="M25 145 Q30 136 38 140 Q38 150 30 152 Q23 148 25 145Z" fill="#e8d8b0" opacity=".65"/>
+      <path d="M50 160 Q57 152 64 157 Q62 167 54 167 Q47 163 50 160Z" fill="#dfc99a" opacity=".6"/>
+      <!-- Nhẫn nhỏ -->
+      <circle cx="25" cy="185" r="7" fill="none" stroke="#c9a227" stroke-width="1.8" opacity=".45"/>
+    </svg>
+
+    <!-- ░░ Khung viền 3 lớp ░░ -->
+    <div class="border-outer"></div>
+    <div class="border-mid"></div>
+    <div class="border-inner"></div>
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div>
+    <div class="corner corner-br"></div>
+
+    <!-- ░░ Nội dung chính ░░ -->
+    <div class="card-inner">
+
+      <!-- Cột trái: ảnh + nhẫn + hoa hồng SVG -->
+      <div class="col-photo">
+        <div class="photo-frame">
+          <img class="photo" id="ev-photo"
+            src="https://images.unsplash.com/photo-1519741497674-611481863552?w=900&q=80"
+            alt="Ảnh sự kiện" />
+        </div>
+
+        <!-- Decor dưới ảnh: hoa – nhẫn – hoa (PNG từ assets/) -->
+        <div class="decor-cluster" aria-hidden="true">
+          <img class="dec rose-l" src="assets/decor-rose-l.png"  alt="" />
+          <img class="dec rings"  src="assets/decor-rings.png"   alt="" />
+          <img class="dec rose-r" src="assets/decor-rose-r.png"  alt="" />
+        </div>
+      </div>
+
+      <!-- Cột phải: văn bản -->
+      <div class="col-text">
+
+        <p class="line1">Kỷ niệm</p>
+
+        <div class="divider" aria-hidden="true">
+          <span class="div-line"></span>
+          <span class="div-diamond">✦</span>
+          <span class="div-line"></span>
+        </div>
+
+        <p class="count-num" id="ev-n">3</p>
+        <p class="count-label">Năm ngày cưới</p>
+
+        <p class="pair" id="ev-pair">Ba<span class="heart">♥</span>Mẹ</p>
+
+        <p class="range" id="ev-range">19/09/2023 – 19/09/2026</p>
+
+      </div>
+    </div><!-- /.card-inner -->
+  </div><!-- /.card -->
+</div><!-- /.stage -->
+
+<script>
+  /*
+   * ─────────────────────────────────────────────
+   *  DATA INJECTION – GAS thay thế block này:
+   *
+   *  var data = {
+   *    day:         <?= day ?>,          // số nguyên 1–31  (cột ngày Sheet)
+   *    month:       <?= month ?>,        // số nguyên 1–12  (cột tháng Sheet)
+   *    year:        <?= year ?>,         // số nguyên 4 chữ (cột năm Sheet)
+   *    pair_left:   '<?= pairLeft ?>',   // tên người 1 (cột pair_left Sheet)
+   *    pair_right:  '<?= pairRight ?>',  // tên người 2 (cột pair_right Sheet)
+   *    photo_url:   '<?= photoUrl ?>'    // URL Drive ảnh
+   *  };
+   *
+   *  Khi chạy local / preview dùng giá trị mặc định bên dưới:
+   * ─────────────────────────────────────────────
+   */
+  var data = {
+    day:        19,
+    month:      9,
+    year:       2023,
+    pair_left:  'Ba',
+    pair_right: 'Mẹ',
+    photo_url:  'https://images.unsplash.com/photo-1519741497674-611481863552?w=900&q=80'
+  };
+
+  /* ── Helpers ── */
+  function pad(n) { return n < 10 ? '0' + n : String(n); }
+
+  function parseSheetDate(d, m, y) {
+    var dd = parseInt(d, 10);
+    var mm = parseInt(m, 10);
+    var yy = parseInt(y, 10);
+
+    if (isNaN(dd) || isNaN(mm) || isNaN(yy))
+      return { ok: false, msg: 'Ngày/tháng/năm không hợp lệ (không phải số)' };
+    if (mm < 1 || mm > 12)
+      return { ok: false, msg: 'Tháng phải từ 1 đến 12' };
+    if (dd < 1 || dd > 31)
+      return { ok: false, msg: 'Ngày phải từ 1 đến 31' };
+    if (yy < 1900 || yy > 2100)
+      return { ok: false, msg: 'Năm không hợp lý (' + yy + ')' };
+
+    /* Kiểm tra ngày thật (VD: 31/06, 29/02 năm thường) */
+    var probe = new Date(yy, mm - 1, dd);
+    if (probe.getMonth() !== mm - 1 || probe.getDate() !== dd)
+      return { ok: false, msg: pad(dd) + '/' + pad(mm) + '/' + yy + ' không tồn tại' };
+
+    return { ok: true, day: dd, month: mm, year: yy };
+  }
+
+  /* ── Render ── */
+  (function render() {
+    var result = parseSheetDate(data.day, data.month, data.year);
+
+    if (!result.ok) {
+      /* Hiển thị lỗi rõ ràng, không vỡ layout */
+      document.getElementById('ev-n').textContent    = '--';
+      document.getElementById('ev-pair').textContent = '⚠ Lỗi dữ liệu';
+      document.getElementById('ev-range').textContent = result.msg;
+      return;
+    }
+
+    var currentYear = new Date().getFullYear();
+
+    /*
+     * N = số năm kỷ niệm tính đến năm nay.
+     * Chiếu ĐÚNG ngày kỷ niệm → chênh lệch năm là chính xác.
+     */
+    var N = Math.max(0, currentYear - result.year);
+
+    /* Dòng range: ngày cưới gốc – ngày kỷ niệm năm nay (cố định theo ngày cưới) */
+    var weddingDate = pad(result.day) + '/' + pad(result.month) + '/' + result.year;
+    var anniversaryDate = pad(result.day) + '/' + pad(result.month) + '/' + currentYear;
+
+    /* Tên đôi – fallback nếu ô Sheet trống */
+    var nameL = (data.pair_left  && data.pair_left.trim())  ? data.pair_left.trim()  : '---';
+    var nameR = (data.pair_right && data.pair_right.trim()) ? data.pair_right.trim() : '---';
+
+    /* Ảnh */
+    if (data.photo_url && data.photo_url.trim() !== '')
+      document.getElementById('ev-photo').src = data.photo_url;
+
+    document.getElementById('ev-n').textContent = N;
+
+    /* Dùng innerHTML để giữ <span class="heart"> */
+    document.getElementById('ev-pair').innerHTML =
+      nameL + '<span class="heart">\u2665</span>' + nameR;
+
+    document.getElementById('ev-range').textContent =
+      weddingDate + ' \u2013 ' + anniversaryDate;
+  })();
+</script>
+</body>
+</html>
