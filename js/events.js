@@ -81,10 +81,23 @@ var EventCards = {
     return base + '?' + parts.join('&');
   },
 
+  /**
+   * LỚP BẢO VỆ QUAN TRỌNG:
+   * Hàm này có thể bị gọi lại bất ngờ giữa chừng (ví dụ do poll
+   * cấu hình từ cloud phát hiện "thay đổi" — kể cả false positive).
+   * Nếu đang hiển thị 1 sự kiện (visible = true), TUYỆT ĐỐI không
+   * được reset timer/eventIndex — nếu không sẽ làm treo/chớp frame
+   * đang hiện. Chỉ được phép reset khi slideshow THẬT SỰ mới bắt đầu
+   * (không có sự kiện nào đang hiển thị).
+   */
   onSlideshowStarted: function () {
+    if (this.visible) {
+      /* Đang hiện sự kiện → bỏ qua lệnh reset này hoàn toàn */
+      return;
+    }
+
     this.eventIndex  = 0;
     this.pendingShow = false;
-    this.visible     = false;
     this.clearTimers();
     if (!this.eventsToday.length) return;
 
@@ -108,13 +121,26 @@ var EventCards = {
     this.visible     = false;
   },
 
+  /**
+   * Đến giờ (mốc interval N phút) → chỉ ĐÁNH DẤU cờ chờ.
+   * KHÔNG hiện ngay lập tức, kể cả khi ảnh đang đứng yên (_busy = false).
+   * Phải đợi đúng lúc slideshow hoàn tất trọn vẹn 1 chu kỳ hold
+   * (slideshow.js gọi onPhotoHoldComplete() ngay trước khi next() chạy)
+   * mới được phép chuyển sang frame sự kiện.
+   */
   requestShow: function () {
     if (!this.eventsToday.length) return;
     if (this.visible) return;          /* đang chiếu → bỏ qua lần này */
     this.pendingShow = true;
-    this.tryShowWhenIdle();
+    /* KHÔNG gọi tryShowWhenIdle() ở đây — chỉ chờ onPhotoHoldComplete() */
   },
 
+  /**
+   * Slideshow gọi đúng lúc 1 ảnh vừa đứng yên xong (hold hết giờ),
+   * TRƯỚC khi chuyển sang ảnh kế tiếp. Đây là thời điểm DUY NHẤT
+   * được phép chen sự kiện vào — đảm bảo không bao giờ cắt ngang
+   * ảnh đang đứng yên hay đang chuyển cảnh.
+   */
   onPhotoHoldComplete: function () {
     if (this.pendingShow) this.tryShowWhenIdle();
   },
