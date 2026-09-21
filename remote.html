@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Quản lý Box Slideshow</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    body {
+      overflow-y: auto;
+      min-height: 100vh;
+      padding: 0 0 40px;
+    }
+    .remote-wrap {
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 20px 16px 0;
+    }
+    .remote-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    /* ── Tab bar ── */
+    .tab-bar {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 20px;
+      background: rgba(255,255,255,0.05);
+      padding: 5px;
+      border-radius: 12px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px 6px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: rgba(255,255,255,0.55);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      line-height: 1.3;
+      transition: background 0.2s, color 0.2s;
+    }
+    .tab-btn .tab-icon {
+      display: block;
+      font-size: 1.15rem;
+      margin-bottom: 2px;
+    }
+    .tab-btn.active {
+      background: #2b6cb0;
+      color: #fff;
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Nút điều khiển (tab Điều khiển) ── */
+    .remote-sub {
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.55);
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .remote-btn {
+      width: 100%;
+      padding: 18px 20px;
+      border: none;
+      border-radius: 14px;
+      font-size: 1.05rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: transform 0.15s ease, background 0.2s;
+      color: #fff;
+    }
+    .remote-btn:active { transform: scale(0.97); }
+    .remote-btn .icon { font-size: 1.5rem; }
+    .remote-btn.code { background: linear-gradient(135deg, #2b6cb0, #3182ce); }
+    .remote-btn.data { background: linear-gradient(135deg, #38a169, #48bb78); }
+    .remote-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .remote-status {
+      margin-top: 22px;
+      padding: 14px 16px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.06);
+      font-size: 0.85rem;
+      line-height: 1.6;
+      color: rgba(255,255,255,0.75);
+    }
+    .remote-status .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 3px 0;
+    }
+    .remote-status .row span:first-child {
+      color: rgba(255,255,255,0.45);
+      flex-shrink: 0;
+    }
+    .remote-status .row span:last-child {
+      text-align: right;
+      word-break: break-word;
+    }
+    .pending-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: rgba(237,137,54,0.25);
+      color: #f6ad55;
+      font-size: 0.75rem;
+    }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 28px;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(20,20,25,0.96);
+      border: 1px solid rgba(255,255,255,0.15);
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      max-width: 90vw;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      z-index: 999;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.ok  { border-color: rgba(72,187,120,0.6); }
+    .toast.err { border-color: rgba(245,101,101,0.6); }
+
+    /* ── Placeholder "sắp ra mắt" ── */
+    .coming-soon {
+      text-align: center;
+      padding: 60px 20px;
+      color: rgba(255,255,255,0.45);
+    }
+    .coming-soon .big-icon {
+      font-size: 2.6rem;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    /* ── Form cài đặt: dùng lại .section/.setting-row có sẵn trong css/style.css ── */
+    .settings-form .section {
+      margin-bottom: 22px;
+    }
+    .settings-form .section h2 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: #a0d2ff;
+    }
+    .btn-save-settings {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 12px;
+      background: #2b6cb0;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 6px;
+    }
+    .btn-save-settings:disabled { opacity: 0.5; cursor: not-allowed; }
+    .settings-loading {
+      text-align: center;
+      padding: 30px 0;
+      color: rgba(255,255,255,0.5);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="remote-wrap">
+    <p class="remote-title">🖥️ Quản lý Box Slideshow</p>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="control">
+        <span class="tab-icon">🎮</span>Điều khiển
+      </button>
+      <button class="tab-btn" data-tab="settings">
+        <span class="tab-icon">⚙️</span>Cài đặt
+      </button>
+      <button class="tab-btn" data-tab="events">
+        <span class="tab-icon">🎉</span>Sự kiện
+      </button>
+      <button class="tab-btn" data-tab="sources">
+        <span class="tab-icon">📁</span>Nguồn ảnh
+      </button>
+    </div>
+
+    <!-- ═══ TAB: ĐIỀU KHIỂN ═══ -->
+    <div class="tab-panel active" id="tab-control">
+      <p class="remote-sub">Bấm nút để gửi lệnh — box sẽ tự nhận trong tối đa 2 phút</p>
+
+      <button id="btn-reload-code" class="remote-btn code">
+        <span class="icon">🔄</span>
+        <span>Cập nhật Code mới</span>
+      </button>
+
+      <button id="btn-reload-data" class="remote-btn data">
+        <span class="icon">🖼️</span>
+        <span>Cập nhật ảnh / sự kiện</span>
+      </button>
+
+      <div class="remote-status" id="status-box">
+        <div class="row"><span>Trạng thái</span><span>Đang tải...</span></div>
+      </div>
+    </div>
+
+    <!-- ═══ TAB: CÀI ĐẶT ═══ -->
+    <div class="tab-panel" id="tab-settings">
+      <div id="settings-loading" class="settings-loading">Đang tải cài đặt hiện tại...</div>
+
+      <form id="settings-form" class="settings-form" style="display:none">
+        <div class="section">
+          <h2>Slideshow</h2>
+
+          <div class="setting-row">
+            <label>Thời gian ảnh đứng yên (giây)</label>
+            <input type="number" id="s-duration" min="1" max="600" />
+          </div>
+          <div class="setting-row">
+            <label>Thời gian hiệu ứng di chuyển (giây)</label>
+            <input type="number" id="s-transition" min="0.5" max="180" step="0.5" />
+          </div>
+          <div class="setting-row">
+            <label>Hiệu ứng chuyển cảnh</label>
+            <select id="s-effect">
+              <option value="random">Ngẫu nhiên (Random)</option>
+              <option value="slide-h">Trượt ngang (mới từ trái)</option>
+              <option value="slide-v">Trượt dọc (mới từ dưới)</option>
+              <option value="diag-bl">Chéo: mới từ dưới-trái</option>
+              <option value="diag-br">Chéo: mới từ dưới-phải</option>
+              <option value="zoom-center">Mờ cũ + zoom mới từ tâm</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <label>Khi ảnh đứng yên</label>
+            <select id="s-fit">
+              <option value="contain">Full ảnh (không cắt)</option>
+              <option value="cover">Phủ kín màn hình (có thể cắt)</option>
+              <option value="fill">Kéo dãn đầy màn hình</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <label>Ẩn giao diện sau (giây không tương tác)</label>
+            <input type="number" id="s-idle" min="3" max="60" />
+          </div>
+          <div class="setting-row">
+            <label>
+              <input type="checkbox" id="s-shuffle" style="width:auto;margin-right:8px" />
+              Xáo trộn tất cả ảnh (gộp mọi folder)
+            </label>
+          </div>
+          <div class="setting-row">
+            <label>
+              <input type="checkbox" id="s-resume" style="width:auto;margin-right:8px" />
+              Tiếp tục từ vị trí cũ khi mở lại
+            </label>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Thiệp sự kiện</h2>
+          <div class="setting-row">
+            <label>Thời gian hiện thiệp (giây)</label>
+            <input type="number" id="s-event-duration" min="5" max="300" />
+          </div>
+          <div class="setting-row">
+            <label>Khoảng cách giữa hai lần thiệp (phút)</label>
+            <input type="number" id="s-event-interval" min="1" max="1440" />
+          </div>
+        </div>
+
+        <button type="submit" id="btn-save-settings" class="btn-save-settings">
+          💾 Lưu cài đặt lên cloud
+        </button>
+        <p class="hint" style="margin-top:10px;text-align:center">
+          Box sẽ tự nhận cài đặt mới trong tối đa 2 phút (không
+          cần bấm gì thêm trên box)
+        </p>
+      </form>
+    </div>
+
+    <!-- ═══ TAB: SỰ KIỆN (chưa làm) ═══ -->
+    <div class="tab-panel" id="tab-events">
+      <div class="coming-soon">
+        <span class="big-icon">🚧</span>
+        Quản lý Sự kiện (sinh nhật / kỷ niệm)<br />sắp ra mắt
+      </div>
+    </div>
+
+    <!-- ═══ TAB: NGUỒN ẢNH (chưa làm) ═══ -->
+    <div class="tab-panel" id="tab-sources">
+      <div class="coming-soon">
+        <span class="big-icon">🚧</span>
+        Quản lý Nguồn ảnh (Google Drive folders)<br />sắp ra mắt
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/config.js"></script>
+  <script>
+  (function () {
+    /* ═══════════════ TAB SWITCHING ═══════════════ */
+    var tabBtns = document.querySelectorAll('.tab-btn');
+    var tabPanels = {
+      control: document.getElementById('tab-control'),
+      settings: document.getElementById('tab-settings'),
+      events: document.getElementById('tab-events'),
+      sources: document.getElementById('tab-sources')
+    };
+    tabBtns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        tabBtns.forEach(function (b) { b.classList.remove('active'); });
+        Object.keys(tabPanels).forEach(function (k) { tabPanels[k].classList.remove('active'); });
+        btn.classList.add('active');
+        tabPanels[btn.dataset.tab].classList.add('active');
+      });
+    });
+
+    /* ═══════════════ CHUNG: GAS URL + TOAST ═══════════════ */
+    function getGasUrl() {
+      return (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.GAS_URL) ? APP_CONFIG.GAS_URL : '';
+    }
+
+    var toastEl = document.getElementById('toast');
+    var toastTimer = null;
+    function showToast(msg, kind) {
+      toastEl.textContent = msg;
+      toastEl.className = 'toast show' + (kind ? ' ' + kind : '');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { toastEl.className = 'toast'; }, 3200);
+    }
+
+    function fmtTime(iso) {
+      if (!iso) return '—';
+      try {
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) return iso;
+        return d.toLocaleString('vi-VN');
+      } catch (e) { return iso; }
+    }
+
+    function fetchConfig() {
+      var url = getGasUrl();
+      if (!url || url.indexOf('DÁN_URL_GAS') !== -1) {
+        return Promise.reject(new Error('Chưa cấu hình GAS_URL trong js/config.js'));
+      }
+      var full = url + (url.indexOf('?') >= 0 ? '&' : '?') + '_t=' + Date.now();
+      return fetch(full, { method: 'GET', redirect: 'follow', cache: 'no-store' })
+        .then(function (res) { return res.json(); });
+    }
+
+    function postAction(payloadObj) {
+      var url = getGasUrl();
+      if (!url || url.indexOf('DÁN_URL_GAS') !== -1) {
+        return Promise.reject(new Error('Chưa cấu hình GAS_URL'));
+      }
+      return fetch(url, {
+        method: 'POST',
+        redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payloadObj)
+      }).then(function (res) { return res.json(); });
+    }
+
+    /* ═══════════════ TAB ĐIỀU KHIỂN ═══════════════ */
+    var btnCode = document.getElementById('btn-reload-code');
+    var btnData = document.getElementById('btn-reload-data');
+    var statusBox = document.getElementById('status-box');
+
+    function setControlBusy(busy) {
+      btnCode.disabled = busy;
+      btnData.disabled = busy;
+    }
+
+    function loadControlStatus() {
+      fetchConfig().then(function (data) {
+        if (!data || data.error) {
+          statusBox.innerHTML = '<div class="row"><span>Lỗi</span><span>' +
+            ((data && data.error) || 'Không đọc được cấu hình') + '</span></div>';
+          return;
+        }
+        var rc = data.remoteCommand || {};
+        var pendingHtml = rc.command
+          ? '<span class="pending-badge">Đang chờ: ' + rc.command + '</span>'
+          : 'Không có';
+        statusBox.innerHTML =
+          '<div class="row"><span>Lệnh đang chờ box xử lý</span><span>' + pendingHtml + '</span></div>' +
+          '<div class="row"><span>Lần áp dụng gần nhất</span><span>' + fmtTime(rc.lastAppliedAt) + '</span></div>' +
+          '<div class="row"><span>Cấu hình cập nhật lúc</span><span>' + fmtTime(data.updatedAt) + '</span></div>';
+      }).catch(function (err) {
+        statusBox.innerHTML = '<div class="row"><span>Lỗi mạng</span><span>' + (err.message || err) + '</span></div>';
+      });
+    }
+
+    function sendCommand(command, label) {
+      var pin = prompt('Nhập mã PIN (để trống nếu chưa đặt PIN):', '');
+      if (pin === null) return;
+
+      setControlBusy(true);
+      postAction({ action: 'setRemoteCommand', pin: pin || '', command: command })
+        .then(function (data) {
+          setControlBusy(false);
+          if (data && data.ok) {
+            showToast('✅ Đã gửi lệnh "' + label + '" — box sẽ tự xử lý trong ít phút', 'ok');
+            loadControlStatus();
+          } else {
+            showToast('❌ ' + ((data && data.error) || 'Gửi lệnh thất bại'), 'err');
+          }
+        })
+        .catch(function (err) {
+          setControlBusy(false);
+          showToast('❌ Lỗi mạng: ' + (err.message || err), 'err');
+        });
+    }
+
+    btnCode.addEventListener('click', function () { sendCommand('reload_code', 'Cập nhật Code mới'); });
+    btnData.addEventListener('click', function () { sendCommand('reload_data', 'Cập nhật ảnh / sự kiện'); });
+
+    loadControlStatus();
+
+    /* ═══════════════ TAB CÀI ĐẶT ═══════════════ */
+    var settingsLoading = document.getElementById('settings-loading');
+    var settingsForm = document.getElementById('settings-form');
+    var btnSaveSettings = document.getElementById('btn-save-settings');
+
+    var sDuration = document.getElementById('s-duration');
+    var sTransition = document.getElementById('s-transition');
+    var sEffect = document.getElementById('s-effect');
+    var sFit = document.getElementById('s-fit');
+    var sIdle = document.getElementById('s-idle');
+    var sShuffle = document.getElementById('s-shuffle');
+    var sResume = document.getElementById('s-resume');
+    var sEventDuration = document.getElementById('s-event-duration');
+    var sEventInterval = document.getElementById('s-event-interval');
+
+    var DEFAULT_SETTINGS = {
+      duration: 120, transition: 30, effect: 'random', fit: 'contain',
+      idle: 8, shuffle: true, resume: true,
+      event_duration: 60, event_interval_minutes: 60
+    };
+
+    function fillSettingsForm(s) {
+      var merged = Object.assign({}, DEFAULT_SETTINGS, s || {});
+      sDuration.value = merged.duration;
+      sTransition.value = merged.transition;
+      sEffect.value = merged.effect;
+      sFit.value = merged.fit;
+      sIdle.value = merged.idle;
+      sShuffle.checked = !!merged.shuffle;
+      sResume.checked = !!merged.resume;
+      sEventDuration.value = merged.event_duration;
+      sEventInterval.value = merged.event_interval_minutes;
+    }
+
+    function loadSettingsTab() {
+      settingsLoading.style.display = 'block';
+      settingsForm.style.display = 'none';
+      fetchConfig().then(function (data) {
+        settingsLoading.style.display = 'none';
+        settingsForm.style.display = 'block';
+        if (!data || data.error) {
+          showToast('❌ Không tải được cài đặt hiện tại: ' + ((data && data.error) || 'lỗi không rõ'), 'err');
+          fillSettingsForm(null);
+          return;
+        }
+        fillSettingsForm(data.settings);
+      }).catch(function (err) {
+        settingsLoading.style.display = 'none';
+        settingsForm.style.display = 'block';
+        showToast('❌ Lỗi mạng khi tải cài đặt: ' + (err.message || err), 'err');
+        fillSettingsForm(null);
+      });
+    }
+
+    settingsForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      var pin = prompt('Nhập mã PIN lưu cấu hình (để trống nếu chưa đặt PIN):', '');
+      if (pin === null) return;
+
+      var settings = {
+        duration: parseInt(sDuration.value, 10) || DEFAULT_SETTINGS.duration,
+        transition: parseFloat(sTransition.value) || DEFAULT_SETTINGS.transition,
+        effect: sEffect.value,
+        fit: sFit.value,
+        idle: parseInt(sIdle.value, 10) || DEFAULT_SETTINGS.idle,
+        shuffle: sShuffle.checked,
+        resume: sResume.checked,
+        event_duration: parseInt(sEventDuration.value, 10) || DEFAULT_SETTINGS.event_duration,
+        event_interval_minutes: parseInt(sEventInterval.value, 10) || DEFAULT_SETTINGS.event_interval_minutes
+      };
+
+      btnSaveSettings.disabled = true;
+      btnSaveSettings.textContent = 'Đang lưu...';
+
+      postAction({ action: 'saveSettings', pin: pin || '', settings: settings })
+        .then(function (data) {
+          btnSaveSettings.disabled = false;
+          btnSaveSettings.textContent = '💾 Lưu cài đặt lên cloud';
+          if (data && data.ok) {
+            showToast('✅ Đã lưu cài đặt. Box sẽ tự nhận trong ~2 phút', 'ok');
+          } else {
+            showToast('❌ ' + ((data && data.error) || 'Lưu thất bại'), 'err');
+          }
+        })
+        .catch(function (err) {
+          btnSaveSettings.disabled = false;
+          btnSaveSettings.textContent = '💾 Lưu cài đặt lên cloud';
+          showToast('❌ Lỗi mạng: ' + (err.message || err), 'err');
+        });
+    });
+
+    loadSettingsTab();
+  })();
+  </script>
+</body>
+</html>
