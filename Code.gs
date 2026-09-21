@@ -1,17 +1,23 @@
 /**
- * Family Slideshow – Config + Events + Settings + Telegram
+ * Family Slideshow – Config + Events + Settings + Telegram + Remote Command
  *
  * Script Properties:
  *   TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, SETTINGS_PIN
  *
  * doGet:
- *   (no action) → apiKey, sources, settings, events, updatedAt
+ *   (no action) → apiKey, sources, settings, events, updatedAt, remoteCommand
  *   ?action=notify&event=on|still_on
  *
  * doPost (Content-Type: text/plain JSON body):
- *   { action: "saveSettings", pin: "...", settings: { ... } }
+ *   { action: "saveSettings", pin, settings }
+ *   { action: "setRemoteCommand", pin, command }   // command: reload_code | reload_data
+ *   { action: "ackRemoteCommand", command, status, message }
  *
  * Sheet tabs: Config, Sources, Settings, Events
+ * Config tab (key/value), tự động thêm nếu chưa có:
+ *   remote_command            – lệnh đang chờ box xử lý
+ *   remote_command_at         – thời điểm lệnh được đặt
+ *   last_command_applied_at   – thời điểm box xử lý xong lệnh gần nhất
  */
 
 // ===== SỬA DÒNG NÀY =====
@@ -28,6 +34,11 @@ var DEFAULT_SETTINGS = {
   resume: true,
   event_duration: 60,
   event_interval_minutes: 60
+};
+
+var ALLOWED_REMOTE_COMMANDS = {
+  reload_code: true,
+  reload_data: true
 };
 
 function doGet(e) {
@@ -72,11 +83,21 @@ function doPost(e) {
       return jsonResponse(saveSettingsToSheet(body.pin, body.settings || {}));
     }
 
+    if (body.action === 'setRemoteCommand') {
+      return jsonResponse(setRemoteCommand(body.pin, body.command));
+    }
+
+    if (body.action === 'ackRemoteCommand') {
+      return jsonResponse(ackRemoteCommand(body.command, body.status, body.message));
+    }
+
     return jsonResponse({ error: 'Unknown action' });
   } catch (err) {
     return jsonResponse({ error: String(err.message || err) });
   }
 }
+
+/* ═══════════════════════ ĐỌC CẤU HÌNH TỔNG ═══════════════════════ */
 
 function readSheetConfig() {
   var ss = SpreadsheetApp.openById(SHEET_ID);
@@ -87,13 +108,11 @@ function readSheetConfig() {
     return { error: 'Thiếu tab Config hoặc Sources' };
   }
 
-  var apiKey = '';
-  var configData = configSheet.getDataRange().getValues();
-  for (var i = 0; i < configData.length; i++) {
-    var key = String(configData[i][0] || '').trim().toLowerCase();
-    var val = String(configData[i][1] || '').trim();
-    if (key === 'api_key' || key === 'apikey') apiKey = val;
-  }
+  var configMap = readConfigMap(configSheet);
+  var apiKey = configValue(configMap, 'api_key') || configValue(configMap, 'apikey');
+  var remoteCommand = configValue(configMap, 'remote_command');
+  var remoteCommandAt = configValue(configMap, 'remote_command_at');
+  var lastCommandAppliedAt = configValue(configMap, 'last_command_applied_at');
 
   var sourcesData = sourcesSheet.getDataRange().getValues();
   var sources = [];
@@ -115,15 +134,28 @@ function readSheetConfig() {
   }
   sources.sort(function (a, b) { return a.order - b.order; });
 
-  var settings = readSettingsSheet(ss);
+  var settingsResult = readSettingsSheet(ss);
   var events = readEventsSheet(ss);
+
+  /*
+   * "updatedAt" phải phản ánh thời điểm Settings THỰC SỰ được lưu
+   * lần cuối (qua saveSettingsToSheet), KHÔNG phải giờ gọi API
+   * hiện tại — nếu không, việc poll định kỳ mỗi 2 phút sẽ luôn
+   * thấy "thay đổi" giả, gây reset không mong muốn ở client.
+   */
+  var stableUpdatedAt = settingsResult.settingsUpdatedAt || '1970-01-01T00:00:00.000Z';
 
   return {
     apiKey: apiKey,
     sources: sources,
-    settings: settings,
+    settings: settingsResult.settings,
     events: events,
-    updatedAt: new Date().toISOString()
+    updatedAt: stableUpdatedAt,
+    remoteCommand: {
+      command: remoteCommand,
+      at: remoteCommandAt,
+      lastAppliedAt: lastCommandAppliedAt
+    }
   };
 }
 
@@ -133,7 +165,12 @@ function readSettingsSheet(ss) {
   for (var k in DEFAULT_SETTINGS) {
     if (DEFAULT_SETTINGS.hasOwnProperty(k)) out[k] = DEFAULT_SETTINGS[k];
   }
-  if (!sheet) return out;
+
+  var settingsUpdatedAt = '';
+
+  if (!sheet) {
+    return { settings: out, settingsUpdatedAt: settingsUpdatedAt };
+  }
 
   var data = sheet.getDataRange().getValues();
   for (var i = 0; i < data.length; i++) {
@@ -142,6 +179,11 @@ function readSettingsSheet(ss) {
     var raw = data[i][1];
     var val = String(raw === null || raw === undefined ? '' : raw).trim();
     if (val === '') continue;
+
+    if (key === 'settings_updated_at') {
+      settingsUpdatedAt = val;
+      continue;
+    }
 
     if (key === 'shuffle' || key === 'resume') {
       out[key] = (val === true || val === 1 || String(val).toLowerCase() === 'true' || val === '1');
@@ -153,7 +195,8 @@ function readSettingsSheet(ss) {
       else out[key] = val;
     }
   }
-  return out;
+
+  return { settings: out, settingsUpdatedAt: settingsUpdatedAt };
 }
 
 function readEventsSheet(ss) {
@@ -203,6 +246,8 @@ function readEventsSheet(ss) {
   return events;
 }
 
+/* ═══════════════════════ LƯU SETTINGS ═══════════════════════ */
+
 function saveSettingsToSheet(pin, settings) {
   var props = PropertiesService.getScriptProperties();
   var expected = props.getProperty('SETTINGS_PIN') || '';
@@ -233,8 +278,6 @@ function saveSettingsToSheet(pin, settings) {
 
   var map = {};
   var data = sheet.getDataRange().getValues();
-  var startRow = 1;
-  if (data.length && String(data[0][0]).toLowerCase() === 'key') startRow = 1;
   for (var i = 0; i < data.length; i++) {
     var k = String(data[i][0] || '').trim();
     if (k) map[k] = i + 1;
@@ -255,15 +298,115 @@ function saveSettingsToSheet(pin, settings) {
     }
   }
 
-  // Cập nhật mốc thời gian
+  var nowIso = new Date().toISOString();
   if (map['settings_updated_at']) {
-    sheet.getRange(map['settings_updated_at'], 2).setValue(new Date().toISOString());
+    sheet.getRange(map['settings_updated_at'], 2).setValue(nowIso);
   } else {
-    sheet.appendRow(['settings_updated_at', new Date().toISOString()]);
+    sheet.appendRow(['settings_updated_at', nowIso]);
   }
 
-  return { ok: true, updatedAt: new Date().toISOString() };
+  return { ok: true, updatedAt: nowIso };
 }
+
+/* ═══════════════════════ REMOTE COMMAND (Giai đoạn 1) ═══════════════════════ */
+
+/**
+ * Đặt lệnh từ xa – được gọi bởi remote.html khi người dùng bấm nút.
+ * Yêu cầu đúng PIN (nếu đã cấu hình SETTINGS_PIN).
+ */
+function setRemoteCommand(pin, command) {
+  command = String(command || '').trim();
+  if (!ALLOWED_REMOTE_COMMANDS[command]) {
+    return { ok: false, error: 'Lệnh không hợp lệ: ' + command };
+  }
+
+  var props = PropertiesService.getScriptProperties();
+  var expected = props.getProperty('SETTINGS_PIN') || '';
+  if (expected) {
+    if (String(pin || '') !== String(expected)) {
+      return { ok: false, error: 'Sai mã PIN' };
+    }
+  }
+
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = getConfigSheet(ss);
+  var nowIso = new Date().toISOString();
+
+  upsertConfigValue(sheet, 'remote_command', command);
+  upsertConfigValue(sheet, 'remote_command_at', nowIso);
+
+  return { ok: true, command: command, at: nowIso };
+}
+
+/**
+ * Box tự gọi khi đã xử lý xong lệnh (thành công hoặc thất bại).
+ * KHÔNG yêu cầu PIN – đây là bước dọn dẹp nội bộ của box, không
+ * phải hành động khởi tạo lệnh mới, không cần bảo vệ thêm.
+ * Luôn dọn cờ lệnh (để không lặp lại) và gửi Telegram báo kết quả.
+ */
+function ackRemoteCommand(command, status, message) {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = getConfigSheet(ss);
+  var nowIso = new Date().toISOString();
+
+  upsertConfigValue(sheet, 'remote_command', '');
+  upsertConfigValue(sheet, 'remote_command_at', '');
+  upsertConfigValue(sheet, 'last_command_applied_at', nowIso);
+
+  var label = command === 'reload_code' ? 'Code mới'
+    : (command === 'reload_data' ? 'Ảnh / sự kiện'
+    : String(command || 'Không rõ'));
+  var isOk = (status !== 'error');
+  var icon = isOk ? '✅' : '⚠️';
+  var msg = icon + ' Cập nhật ' + label + (isOk ? ' thành công' : ' THẤT BẠI') +
+    '\n' + nowIso;
+  if (!isOk && message) {
+    msg += '\nChi tiết: ' + String(message);
+  }
+  sendTelegram(msg);
+
+  return { ok: true, updatedAt: nowIso };
+}
+
+/* ═══════════════════════ HELPER: Config sheet (key/value) ═══════════════════════ */
+
+function getConfigSheet(ss) {
+  var sheet = ss.getSheetByName('Config');
+  if (!sheet) throw new Error('Thiếu tab Config');
+  return sheet;
+}
+
+/** Đọc toàn bộ tab Config thành map: { keyLowercase: { row, value } } */
+function readConfigMap(sheet) {
+  var data = sheet.getDataRange().getValues();
+  var map = {};
+  for (var i = 0; i < data.length; i++) {
+    var rawKey = String(data[i][0] || '').trim();
+    if (!rawKey) continue;
+    var raw = data[i][1];
+    var value = String(raw === null || raw === undefined ? '' : raw).trim();
+    map[rawKey.toLowerCase()] = { row: i + 1, value: value };
+  }
+  return map;
+}
+
+function configValue(map, key) {
+  var entry = map[String(key || '').toLowerCase()];
+  return entry ? entry.value : '';
+}
+
+/** Thêm mới hoặc cập nhật 1 dòng key/value trong tab Config */
+function upsertConfigValue(sheet, key, value) {
+  var map = readConfigMap(sheet);
+  var lower = String(key).toLowerCase();
+  if (map[lower]) {
+    sheet.getRange(map[lower].row, 2).setValue(value);
+  } else {
+    sheet.appendRow([key, value]);
+  }
+}
+
+/* ═══════════════════════ TELEGRAM ═══════════════════════ */
 
 function sendTelegram(text) {
   var props = PropertiesService.getScriptProperties();
