@@ -1,5 +1,6 @@
 /**
  * app.js – UI + GAS config + settings cloud + events + slideshow
+ *          + Remote Command (Giai đoạn 1: điều khiển từ xa qua remote.html)
  */
 (function () {
   const panel = document.getElementById('control-panel');
@@ -36,6 +37,9 @@
   let isIdle = false;
   let isLoadingConfig = false;
   let pollTimer = null;
+
+  /* Chống xử lý trùng lặp khi có 2 lượt poll chồng nhau xử lý cùng 1 lệnh */
+  let remoteCmdBusy = false;
 
   const POLL_MS = 2 * 60 * 1000;
 
@@ -108,7 +112,6 @@
     applySettingsToUI(merged);
     Slideshow.settings = merged;
     EventCards.setSettings(merged);
-    // Restart event interval with new minutes if playing
     if (Slideshow.isPlaying && EventCards.eventsToday.length) {
       EventCards.onSlideshowStarted();
     }
@@ -354,7 +357,87 @@
       });
   }
 
-  /** Poll nhẹ: chỉ so updatedAt / settings, không dừng chiếu */
+  /* ══════════════════════ REMOTE COMMAND (Giai đoạn 1) ══════════════════════ */
+
+  /**
+   * Báo cho GAS biết box đã xử lý xong lệnh (thành công/thất bại).
+   * GAS sẽ tự xóa cờ lệnh trên Sheet + gửi Telegram báo kết quả.
+   * KHÔNG cần PIN vì đây là bước dọn dẹp nội bộ, không phải khởi
+   * tạo lệnh mới.
+   */
+  function ackRemoteCommandOnServer(command, status, message) {
+    var url = getGasUrl();
+    if (!url || url.indexOf('DÁN_URL_GAS') !== -1) return Promise.resolve(false);
+
+    var payload = JSON.stringify({
+      action: 'ackRemoteCommand',
+      command: command,
+      status: status,
+      message: message || ''
+    });
+
+    return fetch(url, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: payload
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) { return !!(data && data.ok); })
+      .catch(function () { return false; });
+  }
+
+  /**
+   * Kiểm tra dữ liệu vừa fetch từ GAS có lệnh điều khiển từ xa
+   * đang chờ hay không (do remote.html đặt), và thực thi tương ứng.
+   *
+   * - reload_code : ACK trước rồi mới reload (vì trang sẽ điều
+   *                 hướng đi mất, không gọi API được sau khi
+   *                 navigate).
+   * - reload_data : Tải lại nguồn ảnh + sự kiện, GIỮ NGUYÊN vị trí
+   *                 đang chiếu (autoStart=true → tôn trọng
+   *                 settings.resume đã lưu), rồi mới ACK theo đúng
+   *                 kết quả thành công/thất bại thực tế.
+   */
+  function checkRemoteCommand(data) {
+    if (remoteCmdBusy) return;
+    var rc = data && data.remoteCommand;
+    if (!rc || !rc.command) return;
+
+    var command = rc.command;
+    remoteCmdBusy = true;
+
+    if (command === 'reload_code') {
+      ackRemoteCommandOnServer('reload_code', 'triggered')
+        .finally(function () {
+          hardReloadApp();
+          /* Trang sẽ điều hướng đi ngay sau đây, không cần reset cờ */
+        });
+      return;
+    }
+
+    if (command === 'reload_data') {
+      loadConfigAndStart(true)
+        .then(function () {
+          return ackRemoteCommandOnServer('reload_data', 'success');
+        })
+        .catch(function (err) {
+          return ackRemoteCommandOnServer('reload_data', 'error', (err && err.message) || String(err));
+        })
+        .finally(function () {
+          remoteCmdBusy = false;
+        });
+      return;
+    }
+
+    /* Lệnh lạ không xác định – vẫn ACK để dọn cờ, tránh kẹt vĩnh viễn */
+    ackRemoteCommandOnServer(command, 'error', 'Lệnh không xác định: ' + command)
+      .finally(function () {
+        remoteCmdBusy = false;
+      });
+  }
+
+  /** Poll nhẹ: chỉ so updatedAt / settings + kiểm tra lệnh từ xa, không dừng chiếu */
   function startSettingsPoll() {
     if (pollTimer) return;
     pollTimer = setInterval(function () {
@@ -365,10 +448,12 @@
   function pollConfigSoft() {
     fetchConfigFromGAS().then(function (data) {
       if (!data || data.error) return;
+
+      /* Kiểm tra lệnh điều khiển từ xa trước tiên, độc lập với
+         việc settings có đổi hay không */
+      checkRemoteCommand(data);
+
       var remoteAt = data.updatedAt || '';
-      if (remoteAt && lastUpdatedAt && remoteAt === lastUpdatedAt) {
-        // same timestamp – still check settings hash lightly
-      }
       if (data.settings) {
         var local = Storage.getSettings();
         var changed = false;
@@ -467,7 +552,9 @@
       isLoadingConfig = false;
       if (sourcesHint) sourcesHint.textContent = 'Lỗi: ' + (err.message || err);
       renderSourceList();
-      alert('Không tải được cấu hình:\n' + (err.message || err));
+      /* Ném lỗi tiếp để checkRemoteCommand() bắt được và báo Telegram
+         thất bại thay vì chỉ alert() im lặng trên box */
+      throw err;
     }
   }
 
