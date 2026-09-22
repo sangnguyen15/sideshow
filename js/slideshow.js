@@ -216,9 +216,14 @@ const Slideshow = {
   },
 
   /**
-   * - Ảnh ngang / vuông: cover (full màn, không méo, cắt rìa nhẹ nếu lệch tỷ lệ)
-   * - Ảnh dọc: contain (đúng tỷ lệ gốc, không cắt, không phóng)
-   * - Setting cover/fill: theo lựa chọn user
+   * - fit = 'contain': FULL ẢNH THẬT SỰ cho MỌI hướng ảnh (ngang,
+   *   dọc, vuông) — không cắt, không phóng, đúng tên gọi
+   *   "Full ảnh (không cắt)".
+   * - fit = 'cover': phủ kín màn hình, có thể cắt rìa nếu ảnh
+   *   lệch tỷ lệ so với màn hình — người dùng CHỦ ĐỘNG chọn nếu
+   *   muốn ảnh ngang luôn tràn viền, chấp nhận crop nhẹ.
+   * - fit = 'fill': kéo dãn đầy khung, có thể méo hình nếu lệch
+   *   tỷ lệ nhiều.
    */
   applyFit(img, fit, photo) {
     img.classList.remove('fit-cover', 'fit-fill', 'fit-portrait');
@@ -251,26 +256,15 @@ const Slideshow = {
       return;
     }
 
-    var iw = (photo && photo.width) || img.naturalWidth || 0;
-    var ih = (photo && photo.height) || img.naturalHeight || 0;
-    var isPortrait = (iw > 0 && ih > 0 && (iw / ih) < 1.05);
-
-    if (isPortrait) {
-      img.style.objectFit = 'contain';
-      img.style.objectPosition = 'center center';
-      img.style.width = 'auto';
-      img.style.height = 'auto';
-      img.style.maxWidth = '100%';
-      img.style.maxHeight = '100%';
-      img.classList.add('fit-portrait');
-      return;
-    }
-
-    img.style.objectFit = 'cover';
+    /* fit === 'contain' → LUÔN contain thật cho mọi hướng ảnh,
+       không còn ngầm chuyển sang cover khi ảnh ngang/vuông nữa */
+    img.style.objectFit = 'contain';
     img.style.objectPosition = 'center center';
-    img.style.width = '100%';
-    img.style.height = '100%';
-    img.classList.add('fit-cover');
+    img.style.width = 'auto';
+    img.style.height = 'auto';
+    img.style.maxWidth = '100%';
+    img.style.maxHeight = '100%';
+    img.classList.add('fit-portrait');
   },
 
   showStaticCurrent() {

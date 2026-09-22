@@ -461,11 +461,18 @@
           if (data.settings[k] !== undefined && String(data.settings[k]) !== String(local[k])) changed = true;
         });
         if (changed || (remoteAt && remoteAt !== lastUpdatedAt)) {
-          applyRemoteSettings(data.settings, remoteAt);
+          /* QUAN TRỌNG: cập nhật danh sách sự kiện TRƯỚC khi gọi
+             applyRemoteSettings(). Hàm này kiểm tra
+             EventCards.eventsToday.length để quyết định có tạo
+             lại interval-timer hiện thiệp hay không — nếu gọi
+             SAU, nó sẽ đọc phải danh sách CŨ (có thể rỗng) và bỏ
+             lỡ việc tạo timer, khiến sự kiện hôm nay không bao
+             giờ được kích hoạt dù dữ liệu đã đúng. */
           if (data.events) {
             allEvents = data.events;
             EventCards.setEventsFromConfig(allEvents);
           }
+          applyRemoteSettings(data.settings, remoteAt);
           updateStatus('Đã tự cập nhật cấu hình từ cloud');
         } else if (remoteAt) {
           lastUpdatedAt = remoteAt;
