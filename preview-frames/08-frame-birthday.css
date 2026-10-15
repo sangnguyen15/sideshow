@@ -167,16 +167,25 @@ html, body {
 .name {
   font-family: 'Playfair Display', Georgia, serif;
   font-size: clamp(40px, 8.8vmin, 92px);
-  font-weight: 800; line-height: 1.1;
-  max-width: 100%; word-break: break-word;
+  font-weight: 800;
+  line-height: 1.1;
+  max-width: 100%;
+  word-break: break-word;
   background: linear-gradient(160deg,
     #5c4a32 0%, #8b6914 32%, #c9a835 62%, #6b5420 100%);
-  -webkit-background-clip: text; background-clip: text;
-  color: transparent; -webkit-text-fill-color: transparent;
-  margin-bottom: 1.2vmin;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
   flex-shrink: 0;
-}
 
+  /* FIX: mở rộng hộp nền để không cắt đuôi chữ (g, y, p, ẹ, ị...)
+     và dấu phía trên (Ế, Ộ, Ữ...) */
+  padding: 0.12em 0.05em 0.25em;
+  /* Bù lại bằng margin âm để bố cục giữ nguyên như cũ
+     (margin-bottom gốc 1.2vmin) */
+  margin: -0.12em 0 calc(1.2vmin - 0.25em);
+}
 .count-label {
   font-family: 'Dancing Script', cursive;
   font-size: clamp(30px, 5.8vmin, 60px);
