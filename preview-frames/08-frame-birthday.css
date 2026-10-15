@@ -141,7 +141,7 @@ html, body {
 
 .line1 {
   font-family: 'Be Vietnam Pro', sans-serif;
-  font-size: clamp(22px, 4.4vmin, 46px);
+  font-size: clamp(25px, 5vmin, 52px);
   font-weight: 700;
   letter-spacing: 0.025em;
   line-height: 1.15;
